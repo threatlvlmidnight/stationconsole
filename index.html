@@ -627,40 +627,41 @@
   }
 
   /* ── COMMODITIES ── */
+  // Stooq symbols for futures (no auth, CSV, proxy-friendly)
   const SYMBOLS = [
-    { sym: 'CL=F',  label: 'WTI CRUDE',  primary: true  },
-    { sym: 'BZ=F',  label: 'BRENT',      primary: false },
-    { sym: 'NG=F',  label: 'NAT GAS',    primary: false },
-    { sym: 'GC=F',  label: 'GOLD',       primary: false },
+    { sym: 'cl.f',  label: 'WTI CRUDE',  primary: true  },
+    { sym: 'co.f',  label: 'BRENT',      primary: false },
+    { sym: 'ng.f',  label: 'NAT GAS',    primary: false },
+    { sym: 'gc.f',  label: 'GOLD',       primary: false },
   ];
 
   let wtiPrice = null;
   let wtiDir   = '';
 
-  async function fetchQuote(symbol) {
-    const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=10d`;
-    const raw  = await fetchProxied(url);
-    let data;
-    try { data = JSON.parse(raw); }
-    catch(e) { throw new Error(`Bad JSON for ${symbol}: ${raw.slice(0, 80)}`); }
-    const res  = data.chart.result[0];
-    const price    = res.meta.regularMarketPrice;
-    const prevClose= res.meta.chartPreviousClose;
-    const closes   = (res.indicators.quote[0].close || []).filter(Boolean);
-    const change   = price - prevClose;
-    const changePct= (change / prevClose) * 100;
-    return { price, change, changePct, closes };
+  async function fetchQuote(sym) {
+    // Stooq returns oldest-first CSV: Date,Open,High,Low,Close,Volume
+    const url = `https://stooq.com/q/d/l/?s=${sym}&i=d`;
+    const raw = await fetchProxied(url);
+    const lines = raw.trim().split('\n').filter(l => l && !/^Date/i.test(l));
+    if (lines.length < 2) throw new Error(`Insufficient data for ${sym}`);
+    const parse = line => { const p = line.split(','); return parseFloat(p[4]); }; // index 4 = Close
+    const closes = lines.map(parse).filter(v => !isNaN(v));
+    const price     = closes[closes.length - 1];
+    const prevClose = closes[closes.length - 2];
+    const change    = price - prevClose;
+    const changePct = (change / prevClose) * 100;
+    return { price, change, changePct, closes: closes.slice(-10) };
   }
 
   async function fetchCommodities() {
     try {
       const [wti, brent] = await Promise.all([
-        fetchQuote('CL=F'),
-        fetchQuote('BZ=F'),
+        fetchQuote('cl.f'),
+        fetchQuote('co.f'),
       ]);
       const secondary = await Promise.allSettled([
-        fetchQuote('NG=F'),
-        fetchQuote('GC=F'),
+        fetchQuote('ng.f'),
+        fetchQuote('gc.f'),
       ]);
       renderCommodities(wti, brent, secondary);
       wtiPrice = wti.price.toFixed(2);
