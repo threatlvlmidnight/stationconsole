@@ -102,7 +102,8 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
-      overflow: hidden;
+      overflow: visible;
+      padding-top: 10px;
     }
 
     .content {
@@ -112,6 +113,8 @@
       gap: 7px;
       min-width: 0;
       min-height: 0;
+      padding-top: 10px;
+      overflow: visible;
     }
 
     .bottom-bar { flex-shrink: 0; }
@@ -201,6 +204,22 @@
     /* ── RADAR ── */
     .radar-wrap { display: flex; justify-content: center; padding: 4px 0; }
 
+    /* ── DEV CONSOLE ── */
+    .dev-console-scroll {
+      overflow-y: auto; overflow-x: hidden;
+      flex: 1; min-height: 0;
+      font-size: 9px; line-height: 1.6;
+      display: flex; flex-direction: column;
+      gap: 1px;
+    }
+    .dev-console-scroll::-webkit-scrollbar { width: 3px; }
+    .dev-console-scroll::-webkit-scrollbar-thumb { background: var(--green-dim); }
+    .dev-line { font-family: monospace; color: var(--green-mid); word-break: break-all; padding: 1px 0; border-bottom: 1px solid rgba(0,255,65,0.04); }
+    .dev-line.log  { color: var(--green-mid); }
+    .dev-line.warn { color: var(--amber); }
+    .dev-line.err  { color: var(--red); }
+    .dev-line .dev-ts { color: var(--green-dim); margin-right: 4px; }
+
     /* ── NEWS SHARED ── */
     .news-source-bar {
       font-size: 9px; letter-spacing: 2px; color: var(--green-mid);
@@ -217,6 +236,9 @@
       line-height: 1.5;
       animation: slide-in 0.35s ease forwards;
     }
+    .news-item-link { cursor: pointer; }
+    .news-item-link:hover .ni-text { color: var(--green); text-decoration: underline; text-decoration-color: rgba(0,255,65,0.4); }
+    .news-item-link:hover { background: rgba(0,255,65,0.03); }
     .ni-time { color: var(--green-mid); margin-right: 5px; font-size: 9px; }
     .ni-src  {
       font-size: 8px; letter-spacing: 1px; padding: 1px 3px;
@@ -374,11 +396,17 @@
     </div>
 
     <!-- RADAR -->
-    <div class="panel" style="flex:1;min-height:0;">
+    <div class="panel" style="flex-shrink:0;">
       <span class="panel-label">◈ NETWORK SCAN</span>
       <div class="radar-wrap">
         <canvas id="radar" width="170" height="130"></canvas>
       </div>
+    </div>
+
+    <!-- DEV CONSOLE -->
+    <div class="panel" id="dev-console-panel" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+      <span class="panel-label">◈ SYS LOG</span>
+      <div class="dev-console-scroll" id="dev-console-scroll"></div>
     </div>
 
   </aside>
@@ -455,7 +483,7 @@
   };
 
   /* ── CONSTANTS ── */
-  const PROXY = 'https://api.allorigins.win/get?url=';
+  const PROXY = 'https://corsproxy.io/?';
 
   const WMO = {
     0:'☀ Clear', 1:'🌤 Mainly Clear', 2:'⛅ Partly Cloudy', 3:'☁ Overcast',
@@ -484,7 +512,7 @@
 
   /* ── WEATHER ── */
   async function fetchWeather() {
-    const loc = CFG.location;
+    const loc = CFG.location.split(',')[0].trim(); // strip state/country suffix for geocoding
     try {
       const geoRes  = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=en&format=json`);
       const geoData = await geoRes.json();
@@ -516,7 +544,7 @@
       });
     } catch (e) {
       document.getElementById('wx-content').innerHTML =
-        `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+        `<div class="signal-lost">⚠ SIGNAL LOST<br>${e.message}</div>`;
     }
   }
 
@@ -546,12 +574,56 @@
 
   fetchWeather();
 
-  /* ── PROXY HELPER ── */
+  /* ── PROXY HELPERS ── */
+  // Proxy chain: corsproxy.io (raw text) → codetabs → allorigins (JSON {contents})
+  // allorigins.win has been flaky (QUIC errors, CORS issues); treat as last resort.
+
+  async function tryFetch(url, timeout = 10000) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      return res;
+    } finally { clearTimeout(tid); }
+  }
+
   async function fetchProxied(url) {
-    const res  = await fetch(PROXY + encodeURIComponent(url));
-    const data = await res.json();
-    if (!data.contents) throw new Error('Proxy returned no contents');
-    return data.contents;
+    // 1. corsproxy.io
+    try {
+      const res = await tryFetch('https://corsproxy.io/?' + encodeURIComponent(url));
+      if (res.ok) { const t = await res.text(); if (t && t.length > 10) return t; }
+    } catch (e) { console.warn('[proxy] corsproxy.io:', e.message); }
+    // 2. codetabs
+    try {
+      const res = await tryFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url));
+      if (res.ok) { const t = await res.text(); if (t && t.length > 10) return t; }
+    } catch (e) { console.warn('[proxy] codetabs:', e.message); }
+    // 3. allorigins (JSON wrapper)
+    try {
+      const res = await tryFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+      if (res.ok) { const d = await res.json(); if (d.contents) return d.contents; }
+    } catch (e) { console.warn('[proxy] allorigins:', e.message); }
+    throw new Error('All proxies failed for: ' + url);
+  }
+
+  // For large pages (live blogs) — same chain but corsproxy first (often faster even for big pages)
+  async function fetchProxiedLarge(url) {
+    // 1. corsproxy.io
+    try {
+      const res = await tryFetch('https://corsproxy.io/?' + encodeURIComponent(url), 15000);
+      if (res.ok && res.status !== 413) { const t = await res.text(); if (t && t.length > 500) return t; }
+    } catch (e) { console.warn('[proxy-large] corsproxy.io:', e.message); }
+    // 2. codetabs
+    try {
+      const res = await tryFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url), 15000);
+      if (res.ok) { const t = await res.text(); if (t && t.length > 500) return t; }
+    } catch (e) { console.warn('[proxy-large] codetabs:', e.message); }
+    // 3. allorigins
+    try {
+      const res = await tryFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), 20000);
+      if (res.ok) { const d = await res.json(); if (d.contents) return d.contents; }
+    } catch (e) { console.warn('[proxy-large] allorigins:', e.message); }
+    throw new Error('All large proxies failed for: ' + url);
   }
 
   /* ── COMMODITIES ── */
@@ -580,48 +652,58 @@
 
   async function fetchCommodities() {
     try {
-      const primary = await fetchQuote(SYMBOLS[0].sym);
-      wtiPrice = primary.price.toFixed(2);
-      wtiDir   = primary.change >= 0 ? '▲' : '▼';
-
-      const secondaryData = await Promise.allSettled(
-        SYMBOLS.slice(1).map(s => fetchQuote(s.sym))
-      );
-
-      renderCommodities(primary, secondaryData, SYMBOLS);
-      document.getElementById('bar-wti').textContent =
-        `$${wtiPrice} ${primary.change >= 0 ? '▲' : '▼'}`;
+      const [wti, brent] = await Promise.all([
+        fetchQuote('CL=F'),
+        fetchQuote('BZ=F'),
+      ]);
+      const secondary = await Promise.allSettled([
+        fetchQuote('NG=F'),
+        fetchQuote('GC=F'),
+      ]);
+      renderCommodities(wti, brent, secondary);
+      wtiPrice = wti.price.toFixed(2);
+      wtiDir   = wti.change >= 0 ? '▲' : '▼';
+      document.getElementById('bar-wti').textContent = `$${wtiPrice} ${wtiDir}`;
     } catch (e) {
       document.getElementById('com-content').innerHTML =
-        `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+        `<div class="signal-lost">⚠ SIGNAL LOST<br>${e.message}</div>`;
     }
   }
 
-  function renderCommodities(primary, secondaryResults, symbols) {
-    const upCls = primary.change >= 0 ? 'up' : 'down';
-    const sign  = primary.change >= 0 ? '+' : '';
-
-    const closes = primary.closes.slice(-9);
-    const mn = Math.min(...closes), mx = Math.max(...closes);
-    const bars = closes.map(c => {
-      const h = mx === mn ? 14 : Math.round(4 + ((c - mn) / (mx - mn)) * 24);
+  function makeSparkline(closes) {
+    const c = closes.slice(-9);
+    const mn = Math.min(...c), mx = Math.max(...c);
+    return c.map(v => {
+      const h = mx === mn ? 10 : Math.round(3 + ((v - mn) / (mx - mn)) * 17);
       return `<div class="com-bar" style="height:${h}px"></div>`;
     }).join('');
+  }
 
-    const secRows = symbols.slice(1).map((s, i) => {
-      const r = secondaryResults[i];
-      if (r.status === 'rejected') return `<div>${s.label} <span>--</span></div>`;
+  function renderCommodities(wti, brent, secondaryResults) {
+    function oilRow(label, data) {
+      const cls  = data.change >= 0 ? 'up' : 'down';
+      const sign = data.change >= 0 ? '+' : '';
+      const dir  = data.change >= 0 ? '▲' : '▼';
+      return `
+        <div class="com-name">${label}</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px">
+          <span class="com-price ${cls}" style="font-size:18px;letter-spacing:1px">$${data.price.toFixed(2)}</span>
+          <span class="com-change ${cls}">${dir} ${sign}${data.change.toFixed(2)} (${sign}${data.changePct.toFixed(2)}%)</span>
+        </div>
+        <div class="com-chart" style="height:20px;margin-bottom:5px">${makeSparkline(data.closes)}</div>`;
+    }
+    const secLabels = ['NAT GAS', 'GOLD'];
+    const secRows = secondaryResults.map((r, i) => {
+      if (r.status === 'rejected') return `<div>${secLabels[i]} <span>--</span></div>`;
       const { price, change } = r.value;
       const cls = change >= 0 ? 'up' : 'down';
-      return `<div>${s.label} <span class="${cls}">$${price.toFixed(2)} ${change >= 0 ? '▲' : '▼'}</span></div>`;
+      return `<div>${secLabels[i]} <span class="${cls}">$${price.toFixed(2)} ${change >= 0 ? '▲' : '▼'}</span></div>`;
     }).join('');
-
-    document.getElementById('com-content').innerHTML = `
-      <div class="com-name">WTI CRUDE OIL</div>
-      <div class="com-price ${upCls}">$${primary.price.toFixed(2)}</div>
-      <div class="com-change ${upCls}">${wtiDir} ${sign}${primary.change.toFixed(2)} (${sign}${primary.changePct.toFixed(2)}%)</div>
-      <div class="com-chart">${bars}</div>
-      <div class="com-secondary">${secRows}</div>`;
+    document.getElementById('com-content').innerHTML =
+      oilRow('WTI CRUDE OIL', wti) +
+      `<div style="border-top:1px solid var(--green-dim);margin:2px 0 5px"></div>` +
+      oilRow('BRENT CRUDE', brent) +
+      `<div class="com-secondary">${secRows}</div>`;
   }
 
   fetchCommodities();
@@ -695,6 +777,128 @@
 
   initRadar();
 
+  /* ── LIVE BLOG SCRAPER ── */
+  async function fetchLiveBlog(url) {
+    const html = await fetchProxiedLarge(url);
+    return parseLiveBlogHTML(html);
+  }
+
+  function parseLiveBlogHTML(html) {
+    const doc  = new DOMParser().parseFromString(html, 'text/html');
+
+    // Recursive deep-search: find first array in a JS object whose items look like news cards
+    function deepFindCards(obj, depth) {
+      if (depth > 10 || !obj || typeof obj !== 'object') return null;
+      if (Array.isArray(obj) && obj.length >= 2) {
+        const s = obj[0];
+        if (s && typeof s === 'object' && !Array.isArray(s)) {
+          const keys = Object.keys(s);
+          const newsKeys = ['headline','title','shortHeadline','cardType','storyId','publishDate','firstPublishDate','datePublished','articleBody'];
+          if (newsKeys.some(k => keys.includes(k))) return obj;
+        }
+      }
+      for (const key of Object.keys(obj)) {
+        const r = deepFindCards(obj[key], depth + 1);
+        if (r) return r;
+      }
+      return null;
+    }
+
+    // Strategy 0: AP / any Next.js __NEXT_DATA__
+    const nextDataScript = doc.querySelector('script#__NEXT_DATA__');
+    if (nextDataScript) {
+      try {
+        const nd    = JSON.parse(nextDataScript.textContent);
+        const cards = deepFindCards(nd, 0) || [];
+        if (cards.length > 0) {
+          return cards.slice(0, 100).map(card => {
+            // Dig for headline — AP cards nest it several layers deep
+            const headline =
+              card.headline || card.title || card.shortHeadline ||
+              card.content?.headline || card.content?.title ||
+              card.cardItems?.[0]?.content?.headline ||
+              card.storyContent?.headline ||
+              card.summary || '';
+            const dateStr =
+              card.firstPublishDate || card.publishDate || card.createdAt ||
+              card.datePublished || card.content?.firstPublishDate || '';
+            return {
+              title:   headline.trim().replace(/\s+/g, ' ').slice(0, 280),
+              date:    dateStr ? new Date(dateStr) : new Date(),
+              cats:    ['WORLD'],
+              pubDate: dateStr,
+            };
+          }).filter(i => i.title);
+        }
+      } catch (e) {
+        console.warn('__NEXT_DATA__ parse error:', e.message);
+      }
+    }
+
+    // Strategy 1: JSON-LD LiveBlogPosting schema (AP, many others)
+    for (const script of doc.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const data  = JSON.parse(script.textContent);
+        const nodes = Array.isArray(data) ? data : [data];
+        for (const node of nodes) {
+          const updates = node['@type'] === 'LiveBlogPosting' ? (node.liveBlogUpdate || []) : [];
+          if (updates.length > 0) {
+            return updates.slice(0, 30).map(u => ({
+              title:   ((u.headline || u.name || u.articleBody || '').trim().replace(/\s+/g, ' ').slice(0, 280)),
+              date:    u.datePublished ? new Date(u.datePublished) : new Date(),
+              cats:    ['WORLD'],
+              pubDate: u.datePublished || '',
+            })).filter(i => i.title);
+          }
+        }
+      } catch {}
+    }
+
+    // Strategy 2: Guardian live blocks
+    const guardianBlocks = doc.querySelectorAll('.block[id^="block-"]');
+    if (guardianBlocks.length > 0) {
+      return Array.from(guardianBlocks).slice(0, 30).map(block => {
+        const timeEl  = block.querySelector('time');
+        const titleEl = block.querySelector('.block-title, h2, h3');
+        const bodyEl  = block.querySelector('.block-elements p, p');
+        const title   = (titleEl?.textContent || bodyEl?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 280);
+        const dateStr = timeEl?.getAttribute('datetime') || '';
+        return { title, date: dateStr ? new Date(dateStr) : new Date(), cats: ['WORLD'], pubDate: dateStr };
+      }).filter(i => i.title);
+    }
+
+    // Strategy 3: AP-specific selectors (ap.com live pages)
+    const apCards = doc.querySelectorAll('[class*="LiveCard"], [class*="livecard"], [class*="Card__content"], [data-key]');
+    if (apCards.length > 0) {
+      return Array.from(apCards).slice(0, 100).map(el => {
+        const timeEl  = el.querySelector('time');
+        const textEl  = el.querySelector('h1, h2, h3, [class*="headline"], [class*="title"]');
+        const bodyEl  = el.querySelector('p');
+        const title   = (textEl?.textContent || bodyEl?.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 280);
+        const dateStr = timeEl?.getAttribute('datetime') || timeEl?.textContent || '';
+        return { title, date: dateStr ? new Date(dateStr) : new Date(), cats: ['WORLD'], pubDate: dateStr };
+      }).filter(i => i.title);
+    }
+
+    // Strategy 4: Generic article/section elements
+    const candidates = doc.querySelectorAll('article, [class*="LiveUpdate"], [class*="live-update"], [data-testid*="live"]');
+    if (candidates.length > 0) {
+      return Array.from(candidates).slice(0, 100).map(el => {
+        const timeEl  = el.querySelector('time');
+        const textEl  = el.querySelector('h2, h3, p');
+        const title   = textEl?.textContent?.trim().replace(/\s+/g, ' ').slice(0, 280) || '';
+        const dateStr = timeEl?.getAttribute('datetime') || '';
+        return { title, date: dateStr ? new Date(dateStr) : new Date(), cats: ['WORLD'], pubDate: dateStr };
+      }).filter(i => i.title);
+    }
+
+    // Strategy 5: Log what we got so user can debug
+    console.warn('[LiveBlog] All strategies failed. Page title:', doc.title);
+    console.warn('[LiveBlog] Scripts with __NEXT_DATA__:', !!doc.querySelector('script#__NEXT_DATA__'));
+    console.warn('[LiveBlog] Body text snippet:', doc.body?.textContent?.slice(0, 200));
+    return [];
+  }
+
   /* ── RSS UTILITIES ── */
   function parseRSS(xmlString) {
     const parser = new DOMParser();
@@ -731,12 +935,16 @@
   function makeNewsItem(item, srcCls, srcLabel) {
     const cat = guessCategory(item.title, item.cats);
     const el  = document.createElement('div');
-    el.className = 'news-item';
+    el.className = 'news-item' + (item.link ? ' news-item-link' : '');
     el.innerHTML = `
       <span class="ni-time">${fmtTime(item.date)}</span>
       <span class="ni-src ${srcCls}">${srcLabel}</span>
       <span class="ni-cat cat-${cat}">${cat}</span>
       <span class="ni-text">${item.title}</span>`;
+    if (item.link) {
+      el.title = item.link;
+      el.addEventListener('click', () => window.open(item.link, '_blank', 'noopener,noreferrer'));
+    }
     return el;
   }
 
@@ -759,20 +967,51 @@
     }
   }
 
+  /* ── DEV CONSOLE INTERCEPT ── */
+  (function() {
+    const MAX_LINES = 120;
+    function addLine(level, args) {
+      const scroll = document.getElementById('dev-console-scroll');
+      if (!scroll) return;
+      const ts = new Date().toTimeString().slice(0,8);
+      const text = args.map(a => {
+        if (typeof a === 'string') return a;
+        try { return JSON.stringify(a); } catch(e) { return String(a); }
+      }).join(' ');
+      const el = document.createElement('div');
+      el.className = `dev-line ${level}`;
+      el.innerHTML = `<span class="dev-ts">${ts}</span>${text.slice(0, 300)}`;
+      scroll.appendChild(el);
+      // trim old lines
+      while (scroll.children.length > MAX_LINES) scroll.removeChild(scroll.firstChild);
+      scroll.scrollTop = scroll.scrollHeight;
+    }
+    const _log   = console.log.bind(console);
+    const _warn  = console.warn.bind(console);
+    const _error = console.error.bind(console);
+    console.log   = (...a) => { _log(...a);   addLine('log',  a); };
+    console.warn  = (...a) => { _warn(...a);  addLine('warn', a); };
+    console.error = (...a) => { _error(...a); addLine('err',  a); };
+    window.addEventListener('error', e => addLine('err', [e.message + ' @ ' + e.filename + ':' + e.lineno]));
+    window.addEventListener('unhandledrejection', e => addLine('err', ['Unhandled:', e.reason?.message || e.reason]));
+  })();
+
   /* ── TOPIC FEEDS ── */
-  const AP_TOPIC_BASE       = 'https://feeds.apnews.com/rss/apf-';
-  const GUARDIAN_TOPIC_BASE = 'https://www.theguardian.com/';
+  // AP blocks most proxy IPs on their RSS feeds; use Google News RSS as AP fallback
+  // Guardian keyword feeds are reliable
+  const GUARDIAN_TOPIC_BASE = 'https://www.theguardian.com/world/';
 
   function buildTopicUrls(cfg) {
-    if (cfg.url) return [{ url: cfg.url, src: 'custom' }];
-    const urls = [];
-    const kw   = encodeURIComponent(cfg.keyword || '');
+    if (cfg.url) return [{ url: cfg.url, src: 'custom', large: true }];
+    const kw = (cfg.keyword || '').trim();
     if (!kw) return [];
+    const urls = [];
     if (cfg.source === 'ap' || cfg.source === 'both') {
-      urls.push({ url: `${AP_TOPIC_BASE}${kw}`, src: 'ap' });
+      // Google News RSS filtered to AP + keyword (avoids AP's Cloudflare blocking)
+      urls.push({ url: `https://news.google.com/rss/search?q=${encodeURIComponent(kw)}+site:apnews.com&hl=en-US&gl=US&ceid=US:en`, src: 'ap' });
     }
     if (cfg.source === 'guardian' || cfg.source === 'both') {
-      urls.push({ url: `${GUARDIAN_TOPIC_BASE}${encodeURIComponent(cfg.keyword)}/rss`, src: 'grd' });
+      urls.push({ url: `${GUARDIAN_TOPIC_BASE}${encodeURIComponent(kw)}/rss`, src: 'grd' });
     }
     return urls;
   }
@@ -793,7 +1032,9 @@
     const srcBar = document.getElementById(`topic-source-${n}`);
     const scroll = document.getElementById(`topic-scroll-${n}`);
 
-    if (!cfg.active || (!cfg.url && !cfg.keyword)) {
+    // Only skip if user explicitly disabled the feed, or no keyword/url is set at all
+    const isExplicitlyDisabled = localStorage.getItem(`cfg_topic${n}_active`) === 'false';
+    if (isExplicitlyDisabled || (!cfg.url && !cfg.keyword)) {
       if (n === 1) panel.style.display = 'flex';
       if (n === 2) panel.style.display = 'none';
       return;
@@ -807,32 +1048,63 @@
     const targets = buildTopicUrls(cfg);
     if (!targets.length) return;
 
+    // Fetch helper: try RSS first (with optional keyword filter), fall back to live blog scraping
+    async function fetchFeedItems(target) {
+      let items = [];
+      const fetcher = target.large ? fetchProxiedLarge : fetchProxied;
+      try {
+        const raw = await fetcher(target.url);
+        items = parseRSS(raw);
+      } catch {}
+      if (items.length === 0) {
+        try {
+          const raw = await fetchProxiedLarge(target.url);
+          items = await parseLiveBlogHTML(raw);
+        } catch {}
+      }
+      // Client-side keyword filter for AP broadcast feeds
+      if (target.keyword) {
+        const kw = target.keyword.toLowerCase();
+        items = items.filter(i => i.title.toLowerCase().includes(kw) || (i.cats || []).join(' ').toLowerCase().includes(kw));
+      }
+      return { items, src: target.src };
+    }
+
     try {
       const results = await Promise.allSettled(
-        targets.map(t => fetchRSS(t.url).then(items => ({ items, src: t.src })))
+        targets.map(t => fetchFeedItems(t))
       );
 
+      // Deduplicate by title across AP feeds
+      const seen = new Set();
       const allItems = results
         .filter(r => r.status === 'fulfilled')
-        .flatMap(r => r.value.items.map(i => ({ ...i, src: r.value.src })));
+        .flatMap(r => r.value.items.map(i => ({ ...i, src: r.value.src })))
+        .filter(i => { const k = i.title.slice(0, 60); if (seen.has(k)) return false; seen.add(k); return true; });
 
       allItems.sort((a, b) => b.date - a.date);
 
-      if (!allItems.length) {
-        scroll.innerHTML = `<div class="topic-empty">NO STORIES FOUND<br>CHECK FEED URL IN SETTINGS</div>`;
+      // Show all items from today (since midnight local); fall back to latest 60 if none are dated today
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const todayItems = allItems.filter(i => i.date >= todayStart);
+      const displayItems = todayItems.length > 0 ? todayItems : allItems.slice(0, 60);
+
+      if (!displayItems.length) {
+        const tried = targets.map(t => t.url.replace(/^https?:\/\//, '').slice(0, 50)).join(' | ');
+        scroll.innerHTML = `<div class="topic-empty">NO STORIES FOUND<br><span style="font-size:8px;opacity:.5">${tried}</span></div>`;
         return;
       }
 
       scroll.innerHTML = '';
-      allItems.slice(0, 25).forEach((item, i) => {
+      displayItems.forEach((item, i) => {
         const srcCls = item.src === 'ap' ? 'ap' : item.src === 'grd' ? 'grd' : 'ap';
         const srcLbl = item.src === 'ap' ? 'AP' : item.src === 'grd' ? 'GRD' : 'RSS';
         const el = makeNewsItem(item, srcCls, srcLbl);
-        el.style.animationDelay = `${i * 60}ms`;
+        el.style.animationDelay = `${Math.min(i * 40, 800)}ms`;
         scroll.appendChild(el);
       });
     } catch (e) {
-      scroll.innerHTML = `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+      scroll.innerHTML = `<div class="signal-lost">⚠ SIGNAL LOST<br>${e.message}</div>`;
     }
   }
 
@@ -843,11 +1115,13 @@
     const p2 = document.getElementById('topic-panel-2');
     const u  = document.querySelector('.unified-panel');
 
-    const bothActive = t1.active && (t1.url || t1.keyword) && t2.active && (t2.url || t2.keyword);
-    if (bothActive) {
+    const t1Active = (t1.url || t1.keyword) && localStorage.getItem('cfg_topic1_active') !== 'false';
+    const t2Active = (t2.url || t2.keyword) && localStorage.getItem('cfg_topic2_active') !== 'false';
+
+    if (t1Active && t2Active) {
       p1.style.flex = '2'; p2.style.flex = '2'; u.style.flex = '1';
     } else {
-      p1.style.flex = '3'; p2.style.display = 'none'; u.style.flex = '2';
+      p1.style.flex = '3'; u.style.flex = '2';
     }
   }
 
@@ -856,7 +1130,8 @@
   fetchTopicFeed(2);
 
   /* ── UNIFIED FEED ── */
-  const AP_TOP_URL  = 'https://feeds.apnews.com/rss/apf-topnews';
+  // AP RSS is often blocked by proxies; use Google News RSS filtered to AP as fallback
+  const AP_TOP_URL  = 'https://news.google.com/rss/search?q=site:apnews.com&hl=en-US&gl=US&ceid=US:en';
   const GRD_TOP_URL = 'https://www.theguardian.com/world/rss';
 
   async function fetchUnifiedFeed() {
