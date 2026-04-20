@@ -38,7 +38,11 @@
       <label for="location">Weather Location</label>
       <input type="text" id="location" placeholder="Austin, TX">
       <small>City name or city, country (e.g. "London, GB")</small>
-    </div>
+      <label for="theme">Theme</label>
+      <select id="theme">
+        <option value="phosphor">PHOSPHOR &mdash; Classic green terminal</option>
+        <option value="paper">PAPER &mdash; Clean, modern, high readability</option>
+      </select>    </div>
 
     <div class="section">
       <h2>Topic Feed 1</h2>
@@ -125,7 +129,7 @@
 
   <script>
     const KEYS = [
-      'title','location',
+      'title','location','theme',
       'topic1_active','topic1_label','topic1_source','topic1_keyword','topic1_url',
       'topic2_active','topic2_label','topic2_source','topic2_keyword','topic2_url',
       'show_ap','show_guardian',
