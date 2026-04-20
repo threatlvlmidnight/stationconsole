@@ -118,6 +118,82 @@
     [data-theme="paper"] .light.red   { background: #b91c1c; box-shadow: 0 0 5px #b91c1c; }
     [data-theme="paper"] canvas#radar { filter: hue-rotate(190deg) saturate(0.6) brightness(0.7); }
 
+    /* ── PAPYR THEME (The Office) ── */
+    [data-theme="papyr"] {
+      --green:      #831843;
+      --green-dim:  rgba(131,24,67,0.12);
+      --green-mid:  rgba(131,24,67,0.45);
+      --green-text: rgba(131,24,67,0.85);
+      --cyan:       #be185d;
+      --green-pos:  #9d174d;
+      --red:        #dc2626;
+      --amber:      #db2777;
+      --pink:       #ec4899;
+      --lime:       #be185d;
+      --bg:         #fdf2f8;
+      --bg-dark:    #fce7f3;
+    }
+    [data-theme="papyr"] body {
+      background: var(--bg);
+      color: var(--green);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    }
+    [data-theme="papyr"] body::after { display: none; }
+    [data-theme="papyr"] .panel {
+      background: #ffffff;
+      border-color: rgba(190,24,93,0.15);
+      box-shadow: 0 1px 4px rgba(190,24,93,0.08), 0 0 0 1px rgba(190,24,93,0.06);
+    }
+    [data-theme="papyr"] .panel::before,
+    [data-theme="papyr"] .panel::after { color: rgba(190,24,93,0.2); }
+    [data-theme="papyr"] .panel-label {
+      color: #be185d;
+      background: #fdf2f8;
+      letter-spacing: 2px;
+      font-size: 9px;
+    }
+    [data-theme="papyr"] .header { background: #ffffff; border-color: rgba(190,24,93,0.12); }
+    [data-theme="papyr"] .header-clock { color: #831843; text-shadow: none; font-weight: 700; }
+    [data-theme="papyr"] .header-system { color: #be185d; }
+    [data-theme="papyr"] .header-sub    { color: rgba(131,24,67,0.5); }
+    [data-theme="papyr"] .header-date   { color: rgba(131,24,67,0.5); }
+    [data-theme="papyr"] .bottom-bar { background: #fff; border-color: rgba(190,24,93,0.12); color: rgba(131,24,67,0.55); }
+    [data-theme="papyr"] .bval { color: #be185d; }
+    [data-theme="papyr"] .btn-icon { border-color: rgba(190,24,93,0.25); color: #be185d; }
+    [data-theme="papyr"] .btn-icon:hover { border-color: #be185d; color: #831843; }
+    [data-theme="papyr"] .com-price { text-shadow: none; color: #831843; }
+    [data-theme="papyr"] .com-name  { color: #be185d; }
+    [data-theme="papyr"] .com-bar { background: rgba(190,24,93,0.07); border-top-color: rgba(190,24,93,0.4); }
+    [data-theme="papyr"] .com-secondary { color: #be185d; }
+    [data-theme="papyr"] .com-secondary span { color: #831843; }
+    [data-theme="papyr"] .wx-temp { text-shadow: none; color: #831843; }
+    [data-theme="papyr"] .wx-cond  { color: #be185d; }
+    [data-theme="papyr"] .wx-key   { color: #be185d; }
+    [data-theme="papyr"] .ni-time  { color: rgba(131,24,67,0.5); }
+    [data-theme="papyr"] .ni-text  { color: #3b0764; }
+    [data-theme="papyr"] .ni-src.ap  { color: #be185d; border-color: rgba(190,24,93,0.35); }
+    [data-theme="papyr"] .ni-src.grd { color: #9d174d; border-color: rgba(157,23,77,0.35); }
+    [data-theme="papyr"] .news-item  { border-color: rgba(190,24,93,0.07); }
+    [data-theme="papyr"] .news-source-bar { color: #be185d; border-color: rgba(190,24,93,0.15); }
+    [data-theme="papyr"] .news-item-link:hover { background: rgba(190,24,93,0.03); }
+    [data-theme="papyr"] .news-item-link:hover .ni-text { color: #be185d; text-decoration-color: rgba(190,24,93,0.3); }
+    [data-theme="papyr"] .topic-panel { border-color: rgba(219,39,119,0.25); }
+    [data-theme="papyr"] .topic-panel .panel-label { color: #db2777; }
+    [data-theme="papyr"] .topic-panel .news-source-bar { color: #db2777; border-color: rgba(219,39,119,0.2); }
+    [data-theme="papyr"] .live-dot { background: #db2777; box-shadow: 0 0 4px rgba(219,39,119,0.6); }
+    [data-theme="papyr"] .tel-offline { color: #be185d; }
+    [data-theme="papyr"] .signal-lost { color: #dc2626; }
+    [data-theme="papyr"] .dev-line.log  { color: rgba(131,24,67,0.55); }
+    [data-theme="papyr"] .dev-line.warn { color: #db2777; }
+    [data-theme="papyr"] .dev-line.err  { color: #dc2626; }
+    [data-theme="papyr"] .dev-ts { color: rgba(131,24,67,0.3); }
+    [data-theme="papyr"] .light.green { background: #be185d; box-shadow: 0 0 5px #be185d; }
+    [data-theme="papyr"] .light.amber { background: #db2777; box-shadow: 0 0 5px #db2777; }
+    [data-theme="papyr"] .light.red   { background: #dc2626; box-shadow: 0 0 5px #dc2626; }
+    [data-theme="papyr"] .up   { color: #be185d; }
+    [data-theme="papyr"] .down { color: #dc2626; }
+    [data-theme="papyr"] canvas#radar { filter: hue-rotate(290deg) saturate(0.8) brightness(0.75); }
+
     /* ── PANEL BASE ── */
     .panel {
       border: 1px solid var(--green-dim);
