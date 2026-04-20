@@ -627,25 +627,30 @@
   }
 
   /* ── COMMODITIES ── */
-  // Stooq symbols for futures (no auth, CSV, proxy-friendly)
+  // Symbol map: Yahoo Finance ticker → Stooq ticker (CSV fallback)
+  const SYMBOL_MAP = {
+    'CL=F': 'cl.f',
+    'BZ=F': 'co.f',
+    'NG=F': 'ng.f',
+    'GC=F': 'gc.f',
+  };
+
   const SYMBOLS = [
-    { sym: 'cl.f',  label: 'WTI CRUDE',  primary: true  },
-    { sym: 'co.f',  label: 'BRENT',      primary: false },
-    { sym: 'ng.f',  label: 'NAT GAS',    primary: false },
-    { sym: 'gc.f',  label: 'GOLD',       primary: false },
+    { sym: 'CL=F',  label: 'WTI CRUDE',  primary: true  },
+    { sym: 'BZ=F',  label: 'BRENT',      primary: false },
+    { sym: 'NG=F',  label: 'NAT GAS',    primary: false },
+    { sym: 'GC=F',  label: 'GOLD',       primary: false },
   ];
 
   let wtiPrice = null;
   let wtiDir   = '';
 
-  async function fetchQuote(sym) {
-    // Stooq returns oldest-first CSV: Date,Open,High,Low,Close,Volume
-    const url = `https://stooq.com/q/d/l/?s=${sym}&i=d`;
-    const raw = await fetchProxied(url);
-    const lines = raw.trim().split('\n').filter(l => l && !/^Date/i.test(l));
-    if (lines.length < 2) throw new Error(`Insufficient data for ${sym}`);
-    const parse = line => { const p = line.split(','); return parseFloat(p[4]); }; // index 4 = Close
-    const closes = lines.map(parse).filter(v => !isNaN(v));
+  // Parse Yahoo Finance v8 chart JSON into a normalised quote object
+  function parseYahooChart(json, sym) {
+    const result = json?.chart?.result?.[0];
+    if (!result) throw new Error(`No Yahoo data for ${sym}`);
+    const closes = (result.indicators?.quote?.[0]?.close ?? []).filter(v => v != null);
+    if (closes.length < 2) throw new Error(`Insufficient Yahoo data for ${sym}`);
     const price     = closes[closes.length - 1];
     const prevClose = closes[closes.length - 2];
     const change    = price - prevClose;
@@ -653,15 +658,62 @@
     return { price, change, changePct, closes: closes.slice(-10) };
   }
 
+  // Parse Stooq oldest-first CSV into a normalised quote object
+  function parseStooqCsv(raw, sym) {
+    const lines = raw.trim().split('\n').filter(l => l && !/^Date/i.test(l));
+    if (lines.length < 2) throw new Error(`Insufficient Stooq data for ${sym}`);
+    const closes = lines.map(l => parseFloat(l.split(',')[4])).filter(v => !isNaN(v));
+    if (closes.length < 2) throw new Error(`Insufficient Stooq closes for ${sym}`);
+    const price     = closes[closes.length - 1];
+    const prevClose = closes[closes.length - 2];
+    const change    = price - prevClose;
+    const changePct = (change / prevClose) * 100;
+    return { price, change, changePct, closes: closes.slice(-10) };
+  }
+
+  async function fetchQuote(sym) {
+    const encoded = encodeURIComponent(sym);
+
+    // 1. Vercel serverless proxy (/api/quote) — server-side, no CORS issues
+    try {
+      const res = await tryFetch(`/api/quote?sym=${encoded}`);
+      if (res.ok) { const d = await res.json(); if (d.price != null) return d; }
+      console.warn(`[quote] /api/quote HTTP ${res.status} for ${sym}`);
+    } catch (e) { console.warn('[quote] /api/quote:', e.message); }
+
+    // 2. Yahoo Finance query1 (direct CORS — may work depending on browser/region)
+    try {
+      const res = await tryFetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=14d`);
+      if (res.ok) return parseYahooChart(await res.json(), sym);
+      console.warn(`[quote] yahoo query1 HTTP ${res.status} for ${sym}`);
+    } catch (e) { console.warn('[quote] yahoo query1:', e.message); }
+
+    // 3. Yahoo Finance query2 (alternate host)
+    try {
+      const res = await tryFetch(`https://query2.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=14d`);
+      if (res.ok) return parseYahooChart(await res.json(), sym);
+      console.warn(`[quote] yahoo query2 HTTP ${res.status} for ${sym}`);
+    } catch (e) { console.warn('[quote] yahoo query2:', e.message); }
+
+    // 4. Stooq CSV via CORS proxy chain (corsproxy.io → codetabs → allorigins)
+    const stooqSym = SYMBOL_MAP[sym] || sym.toLowerCase().replace('=f', '.f');
+    try {
+      const raw = await fetchProxied(`https://stooq.com/q/d/l/?s=${stooqSym}&i=d`);
+      return parseStooqCsv(raw, sym);
+    } catch (e) { console.warn('[quote] stooq proxied:', e.message); }
+
+    throw new Error(`All sources failed for ${sym}`);
+  }
+
   async function fetchCommodities() {
     try {
       const [wti, brent] = await Promise.all([
-        fetchQuote('cl.f'),
-        fetchQuote('co.f'),
+        fetchQuote('CL=F'),
+        fetchQuote('BZ=F'),
       ]);
       const secondary = await Promise.allSettled([
-        fetchQuote('ng.f'),
-        fetchQuote('gc.f'),
+        fetchQuote('NG=F'),
+        fetchQuote('GC=F'),
       ]);
       renderCommodities(wti, brent, secondary);
       wtiPrice = wti.price.toFixed(2);
