@@ -386,7 +386,7 @@
 
     /* ── WEATHER ── */
     .wx-icon  { font-size: 20px; margin-bottom: 3px; }
-    .wx-temp  { font-size: 26px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,65,0.4); }
+    .wx-temp  { font-size: var(--wx-temp-size, 26px); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,65,0.4); }
     .wx-cond  { font-size: 9px; color: var(--green-mid); margin-bottom: 6px; }
     .wx-row   { font-size: 10px; line-height: 1.8; }
     .wx-key   { color: var(--green-mid); display: inline-block; width: 72px; }
@@ -400,7 +400,7 @@
 
     /* ── COMMODITIES ── */
     .com-name  { font-size: 9px; letter-spacing: 1px; color: var(--green-mid); margin-bottom: 2px; }
-    .com-price { font-size: 22px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,136,0.4); }
+    .com-price { font-size: var(--com-price-size, 22px); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,136,0.4); }
     .com-change { font-size: 11px; margin-bottom: 6px; }
     .up   { color: var(--green-pos); }
     .down { color: var(--red); }
@@ -479,7 +479,7 @@
     .news-item-link { cursor: pointer; }
     .news-item-link:hover .ni-text { color: var(--green); text-decoration: underline; text-decoration-color: rgba(0,255,65,0.4); }
     .news-item-link:hover { background: rgba(0,255,65,0.03); }
-    .ni-time { color: var(--green-mid); margin-right: 5px; font-size: 9px; }
+    .ni-time { color: var(--green-mid); margin-right: 5px; font-size: var(--ni-time-size, 9px); }
     .ni-src  {
       font-size: 8px; letter-spacing: 1px; padding: 1px 3px;
       border: 1px solid; margin-right: 4px; vertical-align: middle;
@@ -495,7 +495,7 @@
     .cat-MARKET { color: var(--green-pos); border-color: rgba(0,255,136,0.35); }
     .cat-SCI    { color: var(--amber);     border-color: rgba(255,176,0,0.35); }
     .cat-ENV    { color: var(--lime);      border-color: rgba(136,255,68,0.35); }
-    .ni-text { font-size: 11px; color: var(--green-text); }
+    .ni-text { font-size: var(--ni-text-size, 11px); color: var(--green-text); }
 
     /* ── TOPIC PANEL ── */
     .topic-panel {
@@ -708,6 +708,26 @@
   (function() {
     const t = localStorage.getItem('cfg_theme') || 'phosphor';
     document.documentElement.setAttribute('data-theme', t);
+  })();
+
+  /* ── ACCESSIBILITY ── */
+  (function() {
+    const props = {
+      '--ni-text-size':      localStorage.getItem('cfg_a11y_feed_text')    || '11px',
+      '--ni-time-size':      localStorage.getItem('cfg_a11y_feed_meta')    || '9px',
+      '--wx-temp-size':      localStorage.getItem('cfg_a11y_weather_temp') || null,
+      '--com-price-size':    localStorage.getItem('cfg_a11y_com_price')    || null,
+    };
+    const rules = Object.entries(props)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(';');
+    if (rules) {
+      const s = document.createElement('style');
+      s.id = 'a11y-overrides';
+      s.textContent = `:root{${rules}}`;
+      document.head.appendChild(s);
+    }
   })();
 
   /* ── CONFIG ── */

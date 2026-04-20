@@ -125,6 +125,33 @@
       </div>
     </div>
 
+    <div class="section">
+      <h2>Accessibility &mdash; Font Sizes</h2>
+      <small style="display:block;margin-bottom:12px;color:#555">Adjust text sizes for specific panels. Default values shown. Changes apply immediately on save.</small>
+      <div class="row">
+        <div>
+          <label for="a11y_feed_text">Feed headline text (px)</label>
+          <input type="number" id="a11y_feed_text" min="8" max="32" value="11" placeholder="11">
+          <small>Unified + topic feed article titles</small>
+        </div>
+        <div>
+          <label for="a11y_feed_meta">Feed timestamp / meta (px)</label>
+          <input type="number" id="a11y_feed_meta" min="6" max="20" value="9" placeholder="9">
+          <small>Time, source badge, category tag</small>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label for="a11y_weather_temp">Weather temperature (px)</label>
+          <input type="number" id="a11y_weather_temp" min="12" max="60" value="26" placeholder="26">
+        </div>
+        <div>
+          <label for="a11y_com_price">Commodity price (px)</label>
+          <input type="number" id="a11y_com_price" min="12" max="60" value="22" placeholder="22">
+        </div>
+      </div>
+    </div>
+
     <button type="submit">SAVE AND RETURN TO DASHBOARD</button>
     <div class="saved-msg" id="saved-msg">✓ Settings saved. Redirecting...</div>
   </form>
@@ -137,13 +164,16 @@
       'show_ap','show_guardian',
       'cat_WORLD','cat_TECH','cat_MARKET','cat_SCI','cat_ENV',
       'weather_interval','news_interval','oil_interval',
+      'a11y_feed_text','a11y_feed_meta','a11y_weather_temp','a11y_com_price',
     ];
 
     // Load saved values
+    const A11Y_PX_KEYS = ['a11y_feed_text','a11y_feed_meta','a11y_weather_temp','a11y_com_price'];
     KEYS.forEach(key => {
       const el  = document.getElementById(key);
-      const val = localStorage.getItem('cfg_' + key);
+      let val = localStorage.getItem('cfg_' + key);
       if (!el || val === null) return;
+      if (A11Y_PX_KEYS.includes(key)) val = val.replace('px', '');
       if (el.type === 'checkbox') el.checked = val === 'true';
       else el.value = val;
     });
@@ -160,7 +190,8 @@
       KEYS.forEach(key => {
         const el = document.getElementById(key);
         if (!el) return;
-        const val = el.type === 'checkbox' ? String(el.checked) : el.value;
+        let val = el.type === 'checkbox' ? String(el.checked) : el.value;
+        if (A11Y_PX_KEYS.includes(key) && val && !val.endsWith('px')) val += 'px';
         localStorage.setItem('cfg_' + key, val);
       });
       // Rebuild cat_filter array for dashboard
