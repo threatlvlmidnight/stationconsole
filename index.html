@@ -591,17 +591,17 @@
     // 1. corsproxy.io
     try {
       const res = await tryFetch('https://corsproxy.io/?' + encodeURIComponent(url));
-      if (res.ok) { const t = await res.text(); if (t && t.length > 10) return t; }
+      if (res.ok) { const t = await res.text(); if (t && t.length > 10 && !/^(Edge:|Too |Error|<!)/i.test(t)) return t; }
     } catch (e) { console.warn('[proxy] corsproxy.io:', e.message); }
     // 2. codetabs
     try {
       const res = await tryFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url));
-      if (res.ok) { const t = await res.text(); if (t && t.length > 10) return t; }
+      if (res.ok) { const t = await res.text(); if (t && t.length > 10 && !/^(Edge:|Too |Error|<!)/i.test(t)) return t; }
     } catch (e) { console.warn('[proxy] codetabs:', e.message); }
     // 3. allorigins (JSON wrapper)
     try {
       const res = await tryFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
-      if (res.ok) { const d = await res.json(); if (d.contents) return d.contents; }
+      if (res.ok) { const d = await res.json(); if (d.contents && !/^(Edge:|Too |Error|<!)/i.test(d.contents)) return d.contents; }
     } catch (e) { console.warn('[proxy] allorigins:', e.message); }
     throw new Error('All proxies failed for: ' + url);
   }
@@ -611,17 +611,17 @@
     // 1. corsproxy.io
     try {
       const res = await tryFetch('https://corsproxy.io/?' + encodeURIComponent(url), 15000);
-      if (res.ok && res.status !== 413) { const t = await res.text(); if (t && t.length > 500) return t; }
+      if (res.ok && res.status !== 413) { const t = await res.text(); if (t && t.length > 500 && !/^(Edge:|Too |Error)/i.test(t)) return t; }
     } catch (e) { console.warn('[proxy-large] corsproxy.io:', e.message); }
     // 2. codetabs
     try {
       const res = await tryFetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url), 15000);
-      if (res.ok) { const t = await res.text(); if (t && t.length > 500) return t; }
+      if (res.ok) { const t = await res.text(); if (t && t.length > 500 && !/^(Edge:|Too |Error)/i.test(t)) return t; }
     } catch (e) { console.warn('[proxy-large] codetabs:', e.message); }
     // 3. allorigins
     try {
       const res = await tryFetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), 20000);
-      if (res.ok) { const d = await res.json(); if (d.contents) return d.contents; }
+      if (res.ok) { const d = await res.json(); if (d.contents && d.contents.length > 500) return d.contents; }
     } catch (e) { console.warn('[proxy-large] allorigins:', e.message); }
     throw new Error('All large proxies failed for: ' + url);
   }
@@ -640,7 +640,9 @@
   async function fetchQuote(symbol) {
     const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=10d`;
     const raw  = await fetchProxied(url);
-    const data = JSON.parse(raw);
+    let data;
+    try { data = JSON.parse(raw); }
+    catch(e) { throw new Error(`Bad JSON for ${symbol}: ${raw.slice(0, 80)}`); }
     const res  = data.chart.result[0];
     const price    = res.meta.regularMarketPrice;
     const prevClose= res.meta.chartPreviousClose;
