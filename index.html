@@ -197,9 +197,9 @@
     /* ── OLED THEME ── */
     [data-theme="oled"] {
       --green:      #e2e8f0;
-      --green-dim:  rgba(226,232,240,0.08);
-      --green-mid:  rgba(226,232,240,0.35);
-      --green-text: rgba(226,232,240,0.85);
+      --green-dim:  rgba(255,255,255,0.06);
+      --green-mid:  rgba(255,255,255,0.3);
+      --green-text: rgba(255,255,255,0.85);
       --cyan:       #38bdf8;
       --green-pos:  #4ade80;
       --red:        #f87171;
@@ -209,60 +209,86 @@
       --bg:         #000000;
       --bg-dark:    #000000;
     }
-    [data-theme="oled"] body { background: #000; }
+    [data-theme="oled"] body {
+      background: #000;
+      font-family: 'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    }
+    /* all panels, header, footer are pure black */
     [data-theme="oled"] .panel {
-      background: #0a0a0a;
-      border-color: rgba(226,232,240,0.07);
+      background: #000;
+      border-color: rgba(255,255,255,0.07);
       box-shadow: none;
     }
-    [data-theme="oled"] .panel-label { background: #000; }
-    [data-theme="oled"] .header { background: #0a0a0a; border-color: rgba(226,232,240,0.07); }
+    [data-theme="oled"] .panel::before,
+    [data-theme="oled"] .panel::after { display: none; }
+    [data-theme="oled"] .panel-label {
+      background: #000;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 3px;
+    }
+    [data-theme="oled"] .header {
+      background: #000;
+      border-color: rgba(255,255,255,0.07);
+    }
     [data-theme="oled"] .header-clock {
       color: #ffffff;
-      text-shadow: 0 0 20px rgba(255,255,255,0.15);
-      font-weight: 300;
-      letter-spacing: 6px;
+      text-shadow: none;
+      font-weight: 200;
+      letter-spacing: 8px;
+      font-size: 26px;
     }
-    [data-theme="oled"] .header-system { color: rgba(226,232,240,0.5); }
-    [data-theme="oled"] .header-sub    { color: rgba(226,232,240,0.25); }
-    [data-theme="oled"] .header-date   { color: rgba(226,232,240,0.25); }
-    [data-theme="oled"] .bottom-bar { background: #0a0a0a; border-color: rgba(226,232,240,0.07); }
-    [data-theme="oled"] .btn-icon { border-color: rgba(226,232,240,0.15); color: rgba(226,232,240,0.5); }
-    [data-theme="oled"] .btn-icon:hover { border-color: rgba(226,232,240,0.4); color: #fff; }
-    [data-theme="oled"] .com-price { text-shadow: none; color: #fff; font-weight: 300; }
-    [data-theme="oled"] .com-name  { color: rgba(226,232,240,0.4); }
-    [data-theme="oled"] .com-bar { background: rgba(226,232,240,0.04); border-top-color: rgba(56,189,248,0.4); }
-    [data-theme="oled"] .com-secondary { color: rgba(226,232,240,0.4); }
-    [data-theme="oled"] .com-secondary span { color: #e2e8f0; }
-    [data-theme="oled"] .wx-temp { text-shadow: none; color: #fff; font-weight: 300; }
-    [data-theme="oled"] .wx-cond { color: rgba(226,232,240,0.45); }
-    [data-theme="oled"] .wx-key  { color: rgba(226,232,240,0.4); }
-    [data-theme="oled"] .ni-time { color: rgba(226,232,240,0.25); }
-    [data-theme="oled"] .ni-text { color: rgba(226,232,240,0.85); }
-    [data-theme="oled"] .ni-src.ap  { color: #38bdf8; border-color: rgba(56,189,248,0.3); }
-    [data-theme="oled"] .ni-src.grd { color: #4ade80; border-color: rgba(74,222,128,0.3); }
-    [data-theme="oled"] .news-item  { border-color: rgba(226,232,240,0.04); }
-    [data-theme="oled"] .news-source-bar { color: rgba(226,232,240,0.3); border-color: rgba(226,232,240,0.07); }
-    [data-theme="oled"] .news-item-link:hover { background: rgba(255,255,255,0.02); }
-    [data-theme="oled"] .news-item-link:hover .ni-text { color: #fff; text-decoration-color: rgba(226,232,240,0.2); }
-    [data-theme="oled"] .topic-panel { border-color: rgba(251,191,36,0.12); }
-    [data-theme="oled"] .topic-panel .panel-label { color: #fbbf24; }
-    [data-theme="oled"] .topic-panel .news-source-bar { color: rgba(251,191,36,0.6); border-color: rgba(251,191,36,0.1); }
-    [data-theme="oled"] .live-dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.5); }
-    [data-theme="oled"] .tel-offline { color: rgba(226,232,240,0.3); }
-    [data-theme="oled"] .dev-line.log  { color: rgba(226,232,240,0.35); }
+    [data-theme="oled"] .header-system { color: rgba(255,255,255,0.4); letter-spacing: 4px; }
+    [data-theme="oled"] .header-sub    { color: rgba(255,255,255,0.2); }
+    [data-theme="oled"] .header-date   { color: rgba(255,255,255,0.2); }
+    [data-theme="oled"] .bottom-bar    { background: #000; border-color: rgba(255,255,255,0.07); color: rgba(255,255,255,0.3); }
+    [data-theme="oled"] .bval          { color: rgba(255,255,255,0.7); }
+    [data-theme="oled"] .bsep          { color: rgba(255,255,255,0.1); }
+    [data-theme="oled"] .btn-icon      { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); font-family: inherit; }
+    [data-theme="oled"] .btn-icon:hover { border-color: rgba(255,255,255,0.35); color: #fff; }
+    /* commodities */
+    [data-theme="oled"] .com-price     { text-shadow: none; color: #fff; font-weight: 200; font-size: 26px; }
+    [data-theme="oled"] .com-name      { color: rgba(255,255,255,0.3); letter-spacing: 2px; }
+    [data-theme="oled"] .com-change    { font-size: 10px; }
+    [data-theme="oled"] .com-bar       { background: rgba(255,255,255,0.03); border-top-color: rgba(56,189,248,0.35); }
+    [data-theme="oled"] .com-secondary { color: rgba(255,255,255,0.3); }
+    [data-theme="oled"] .com-secondary span { color: rgba(255,255,255,0.7); }
+    /* weather */
+    [data-theme="oled"] .wx-temp  { text-shadow: none; color: #fff; font-weight: 200; }
+    [data-theme="oled"] .wx-cond  { color: rgba(255,255,255,0.35); }
+    [data-theme="oled"] .wx-key   { color: rgba(255,255,255,0.3); }
+    [data-theme="oled"] .wx-icon  { filter: grayscale(1) brightness(1.5); }
+    [data-theme="oled"] .wx-day-label { color: rgba(255,255,255,0.25); }
+    /* news */
+    [data-theme="oled"] .ni-time  { color: rgba(255,255,255,0.2); }
+    [data-theme="oled"] .ni-text  { color: rgba(255,255,255,0.8); }
+    [data-theme="oled"] .ni-cat   { color: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.1); }
+    [data-theme="oled"] .ni-src.ap  { color: #38bdf8; border-color: rgba(56,189,248,0.25); }
+    [data-theme="oled"] .ni-src.grd { color: #4ade80; border-color: rgba(74,222,128,0.25); }
+    [data-theme="oled"] .news-item  { border-color: rgba(255,255,255,0.04); }
+    [data-theme="oled"] .news-source-bar { color: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.06); }
+    [data-theme="oled"] .news-item-link:hover { background: rgba(255,255,255,0.025); }
+    [data-theme="oled"] .news-item-link:hover .ni-text { color: #fff; text-decoration-color: rgba(255,255,255,0.15); }
+    /* topic panel */
+    [data-theme="oled"] .topic-panel          { border-color: rgba(251,191,36,0.1); }
+    [data-theme="oled"] .topic-panel .panel-label { color: rgba(251,191,36,0.6); }
+    [data-theme="oled"] .topic-panel .news-source-bar { color: rgba(251,191,36,0.45); border-color: rgba(251,191,36,0.08); }
+    [data-theme="oled"] .live-dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251,191,36,0.4); }
+    /* misc */
+    [data-theme="oled"] .tel-offline { color: rgba(255,255,255,0.2); }
+    [data-theme="oled"] .signal-lost { color: #f87171; }
+    [data-theme="oled"] .dev-line.log  { color: rgba(255,255,255,0.25); }
     [data-theme="oled"] .dev-line.warn { color: #fbbf24; }
     [data-theme="oled"] .dev-line.err  { color: #f87171; }
-    [data-theme="oled"] .dev-ts { color: rgba(226,232,240,0.18); }
-    [data-theme="oled"] .light.green { background: #4ade80; box-shadow: 0 0 5px #4ade80; }
-    [data-theme="oled"] .light.amber { background: #fbbf24; box-shadow: 0 0 5px #fbbf24; }
-    [data-theme="oled"] .light.red   { background: #f87171; box-shadow: 0 0 5px #f87171; }
-    [data-theme="oled"] .up   { color: #4ade80; }
-    [data-theme="oled"] .down { color: #f87171; }
-    [data-theme="oled"] .news-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(226,232,240,0.08); }
-    [data-theme="oled"] .news-scroll-wrap:hover::-webkit-scrollbar-thumb { background: rgba(226,232,240,0.2); }
-    [data-theme="oled"] body::after { opacity: 0.03; }
-    [data-theme="oled"] canvas#radar { filter: hue-rotate(180deg) saturate(0.4) brightness(0.5); }
+    [data-theme="oled"] .dev-ts        { color: rgba(255,255,255,0.12); }
+    [data-theme="oled"] .light.green   { background: #4ade80; box-shadow: 0 0 4px #4ade80; }
+    [data-theme="oled"] .light.amber   { background: #fbbf24; box-shadow: 0 0 4px #fbbf24; }
+    [data-theme="oled"] .light.red     { background: #f87171; box-shadow: 0 0 4px #f87171; }
+    [data-theme="oled"] .up            { color: #4ade80; }
+    [data-theme="oled"] .down          { color: #f87171; }
+    [data-theme="oled"] .news-scroll-wrap::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.06); }
+    [data-theme="oled"] .news-scroll-wrap:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+    [data-theme="oled"] body::after    { display: none; }
+    [data-theme="oled"] canvas#radar   { filter: hue-rotate(180deg) saturate(0.3) brightness(0.45); }
 
     /* ── PANEL BASE ── */
     .panel {
