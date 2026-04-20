@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title-tag">STATION CONSOLE</title>
+  <style>
+    /* ── CUSTOM PROPERTIES ── */
+    :root {
+      --green:       #00ff41;
+      --green-dim:   #00ff4130;
+      --green-mid:   #00ff4177;
+      --green-text:  #00ff41cc;
+      --cyan:        #00e5ff;
+      --green-pos:   #00ff88;
+      --red:         #ff4455;
+      --amber:       #ffb000;
+      --pink:        #ff4fcf;
+      --lime:        #88ff44;
+      --bg:          #040607;
+      --bg-dark:     #020405;
+      --bg-amber:    #0a0800;
+      --sidebar-w:   220px;
+    }
+
+    /* ── RESET ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--green);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 7px;
+    }
+
+    /* ── CRT SCANLINES ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── VIGNETTE ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* ── PANEL BASE ── */
+    .panel {
+      border: 1px solid var(--green-dim);
+      background: var(--bg-dark);
+      padding: 8px 10px;
+      position: relative;
+      box-shadow: 0 0 6px rgba(0,255,65,0.04), inset 0 0 16px rgba(0,0,0,0.6);
+    }
+    .panel::before { content: '◆'; position: absolute; top: 3px; left:  4px; font-size: 6px; color: var(--green-dim); }
+    .panel::after  { content: '◆'; position: absolute; top: 3px; right: 4px; font-size: 6px; color: var(--green-dim); }
+
+    .panel-label {
+      position: absolute;
+      top: -8px; left: 10px;
+      background: var(--bg);
+      padding: 0 5px;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--green-mid);
+      text-transform: uppercase;
+    }
+
+    /* ── LAYOUT ── */
+    .header { flex-shrink: 0; }
+
+    .main {
+      display: flex;
+      gap: 7px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      overflow: hidden;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .bottom-bar { flex-shrink: 0; }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+    }
+    .header-left { display: flex; flex-direction: column; }
+    .header-system { font-size: 10px; letter-spacing: 3px; color: var(--green-mid); }
+    .header-sub    { font-size: 8px;  letter-spacing: 2px; color: var(--green-dim); margin-top: 2px; }
+    .header-clock  {
+      font-size: 22px;
+      letter-spacing: 4px;
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0,255,65,0.5);
+    }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    .status-lights { display: flex; gap: 6px; align-items: center; }
+    .light {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    .light.green { background: var(--green);  box-shadow: 0 0 5px var(--green);  animation: blink-slow 3s infinite; }
+    .light.amber { background: var(--amber);  box-shadow: 0 0 5px var(--amber); }
+    .light.red   { background: var(--red);    box-shadow: 0 0 5px var(--red);   animation: blink-fast 1.4s infinite; }
+
+    .header-date { font-size: 8px; letter-spacing: 1px; color: var(--green-dim); }
+
+    .btn-icon {
+      background: none; border: 1px solid var(--green-dim);
+      color: var(--green-mid); cursor: pointer;
+      font-family: monospace; font-size: 11px;
+      padding: 2px 6px; letter-spacing: 1px;
+      transition: color 0.2s, border-color 0.2s;
+      text-decoration: none;
+    }
+    .btn-icon:hover { color: var(--green); border-color: var(--green-mid); }
+
+    /* ── WEATHER ── */
+    .wx-icon  { font-size: 20px; margin-bottom: 3px; }
+    .wx-temp  { font-size: 26px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,65,0.4); }
+    .wx-cond  { font-size: 9px; color: var(--green-mid); margin-bottom: 6px; }
+    .wx-row   { font-size: 10px; line-height: 1.8; }
+    .wx-key   { color: var(--green-mid); display: inline-block; width: 72px; }
+    .wx-forecast {
+      display: flex; gap: 4px; margin-top: 7px;
+      font-size: 9px; color: var(--green-mid);
+      border-top: 1px solid var(--green-dim); padding-top: 6px;
+    }
+    .wx-day { flex: 1; text-align: center; }
+    .wx-day-label { color: var(--green-dim); margin-bottom: 2px; }
+
+    /* ── COMMODITIES ── */
+    .com-name  { font-size: 9px; letter-spacing: 1px; color: var(--green-mid); margin-bottom: 2px; }
+    .com-price { font-size: 22px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,136,0.4); }
+    .com-change { font-size: 11px; margin-bottom: 6px; }
+    .up   { color: var(--green-pos); }
+    .down { color: var(--red); }
+    .com-chart {
+      display: flex; align-items: flex-end; gap: 2px; height: 28px; margin-bottom: 8px;
+    }
+    .com-bar {
+      flex: 1;
+      background: rgba(0,255,65,0.15);
+      border-top: 1px solid rgba(0,255,65,0.5);
+      transition: height 0.4s ease;
+      min-height: 2px;
+    }
+    .com-secondary { font-size: 9px; line-height: 1.9; color: var(--green-mid); }
+    .com-secondary span { color: var(--green); }
+
+    /* ── TELEMETRY ── */
+    .tel-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .tel-label { width: 36px; font-size: 9px; letter-spacing: 1px; color: var(--green-mid); }
+    .tel-track { flex: 1; height: 6px; background: rgba(0,255,65,0.08); border: 1px solid var(--green-dim); }
+    .tel-fill  { height: 100%; background: var(--cyan); box-shadow: 0 0 4px rgba(0,229,255,0.5); transition: width 0.4s; }
+    .tel-fill.warn { background: var(--amber); box-shadow: 0 0 4px rgba(255,176,0,0.5); }
+    .tel-fill.crit { background: var(--red);   box-shadow: 0 0 4px rgba(255,68,85,0.5); }
+    .tel-val  { width: 36px; text-align: right; font-size: 10px; color: var(--cyan); }
+    .tel-offline { color: var(--green-mid); font-size: 10px; text-align: center; padding: 8px 0; letter-spacing: 1px; line-height: 1.7; }
+
+    /* ── RADAR ── */
+    .radar-wrap { display: flex; justify-content: center; padding: 4px 0; }
+
+    /* ── NEWS SHARED ── */
+    .news-source-bar {
+      font-size: 9px; letter-spacing: 2px; color: var(--green-mid);
+      padding-bottom: 5px; margin-bottom: 5px;
+      border-bottom: 1px solid var(--green-dim);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .news-scroll-wrap { overflow: hidden; position: relative; flex: 1; }
+    .news-scroll { display: flex; flex-direction: column; }
+
+    .news-item {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(0,255,65,0.06);
+      line-height: 1.5;
+      animation: slide-in 0.35s ease forwards;
+    }
+    .ni-time { color: var(--green-mid); margin-right: 5px; font-size: 9px; }
+    .ni-src  {
+      font-size: 8px; letter-spacing: 1px; padding: 1px 3px;
+      border: 1px solid; margin-right: 4px; vertical-align: middle;
+    }
+    .ni-src.ap  { color: var(--cyan);      border-color: rgba(0,229,255,0.4); }
+    .ni-src.grd { color: var(--green-pos); border-color: rgba(0,255,136,0.4); }
+    .ni-cat {
+      font-size: 8px; letter-spacing: 1px; padding: 1px 3px;
+      border: 1px solid; margin-right: 5px; vertical-align: middle;
+    }
+    .cat-WORLD  { color: var(--cyan);      border-color: rgba(0,229,255,0.35); }
+    .cat-TECH   { color: var(--pink);      border-color: rgba(255,79,207,0.35); }
+    .cat-MARKET { color: var(--green-pos); border-color: rgba(0,255,136,0.35); }
+    .cat-SCI    { color: var(--amber);     border-color: rgba(255,176,0,0.35); }
+    .cat-ENV    { color: var(--lime);      border-color: rgba(136,255,68,0.35); }
+    .ni-text { font-size: 11px; color: var(--green-text); }
+
+    /* ── TOPIC PANEL ── */
+    .topic-panel {
+      border-color: rgba(255,176,0,0.25);
+      background: var(--bg-amber);
+      box-shadow: 0 0 8px rgba(255,176,0,0.06), inset 0 0 16px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .topic-panel .panel-label { color: var(--amber); }
+    .topic-panel .panel-label .live-dot {
+      display: inline-block;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--amber); box-shadow: 0 0 4px var(--amber);
+      margin-right: 5px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .topic-panel::before,
+    .topic-panel::after { color: rgba(255,176,0,0.3); }
+    .topic-panel .news-source-bar { color: var(--amber); border-color: rgba(255,176,0,0.2); }
+    .topic-panel .news-item { border-color: rgba(255,176,0,0.08); }
+    .topic-empty {
+      display: flex; align-items: center; justify-content: center;
+      flex: 1; color: var(--amber); opacity: 0.4;
+      font-size: 10px; letter-spacing: 2px; text-align: center; line-height: 2;
+    }
+
+    /* ── UNIFIED PANEL ── */
+    .unified-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* ── BOTTOM BAR ── */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 4px 10px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--green-mid);
+      border: 1px solid var(--green-dim);
+      background: var(--bg-dark);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .bottom-bar .bsep { color: var(--green-dim); }
+    .bottom-bar .bval { color: var(--green); }
+    .bottom-bar .bup  { color: var(--green-pos); }
+    .bottom-bar .bdn  { color: var(--red); }
+    .bottom-bar .bsync { margin-left: auto; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes blink-slow {
+      0%,100% { opacity: 1; } 50% { opacity: 0.25; }
+    }
+    @keyframes blink-fast {
+      0%,100% { opacity: 1; } 50% { opacity: 0.2; }
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: 0.2; }
+    }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── ERROR STATE ── */
+    .signal-lost {
+      color: var(--red);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-align: center;
+      padding: 10px 0;
+      line-height: 1.8;
+      opacity: 0.8;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="panel header">
+  <span class="panel-label" style="display:none"></span>
+  <div class="header-left">
+    <div class="header-system" id="header-title">STATION CONSOLE · UNIT-7</div>
+    <div class="header-sub">SYS STATUS: NOMINAL ◆ FEEDS: SYNCING</div>
+  </div>
+  <div class="header-clock" id="clock">--:--:--</div>
+  <div class="header-right">
+    <div class="header-actions">
+      <div class="status-lights">
+        <div class="light green"></div>
+        <div class="light amber"></div>
+        <div class="light red"></div>
+      </div>
+      <a class="btn-icon" href="settings.html">⚙ SETTINGS</a>
+      <button class="btn-icon" id="btn-fullscreen" onclick="toggleFullscreen()">⛶ FULL</button>
+    </div>
+    <div class="header-date" id="date-display">--- -- ----</div>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- WEATHER -->
+    <div class="panel" id="weather-panel" style="flex-shrink:0;">
+      <span class="panel-label">◈ ATMOSPHERIC</span>
+      <div id="wx-content">
+        <div class="tel-offline">ACQUIRING SIGNAL...</div>
+      </div>
+    </div>
+
+    <!-- COMMODITIES -->
+    <div class="panel" id="commodities-panel" style="flex-shrink:0;">
+      <span class="panel-label">◈ COMMODITIES</span>
+      <div id="com-content">
+        <div class="tel-offline">ACQUIRING SIGNAL...</div>
+      </div>
+    </div>
+
+    <!-- TELEMETRY -->
+    <div class="panel" style="flex-shrink:0;">
+      <span class="panel-label">◈ SYSTEM TELEMETRY</span>
+      <div class="tel-offline">TELEMETRY OFFLINE<br>NODE MODULE REQUIRED<br>── v2 feature ──</div>
+    </div>
+
+    <!-- RADAR -->
+    <div class="panel" style="flex:1;min-height:0;">
+      <span class="panel-label">◈ NETWORK SCAN</span>
+      <div class="radar-wrap">
+        <canvas id="radar" width="170" height="130"></canvas>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- RIGHT CONTENT -->
+  <div class="content">
+
+    <!-- TOPIC FEED 1 -->
+    <div class="panel topic-panel" id="topic-panel-1" style="flex:3;min-height:0;">
+      <span class="panel-label"><span class="live-dot"></span>LIVE · TOPIC FEED</span>
+      <div class="news-source-bar" id="topic-source-1">CONFIGURE IN SETTINGS ◆ NO FEED ACTIVE</div>
+      <div class="news-scroll-wrap">
+        <div class="news-scroll" id="topic-scroll-1">
+          <div class="topic-empty">NO TOPIC FEED CONFIGURED<br>⚙ OPEN SETTINGS TO ADD A FEED</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOPIC FEED 2 (hidden by default) -->
+    <div class="panel topic-panel" id="topic-panel-2" style="flex:3;min-height:0;display:none;">
+      <span class="panel-label"><span class="live-dot"></span>LIVE · TOPIC FEED 2</span>
+      <div class="news-source-bar" id="topic-source-2">NO FEED ACTIVE</div>
+      <div class="news-scroll-wrap">
+        <div class="news-scroll" id="topic-scroll-2">
+          <div class="topic-empty">NO TOPIC FEED CONFIGURED</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UNIFIED FEED -->
+    <div class="panel unified-panel" style="flex:2;min-height:0;">
+      <span class="panel-label">◈ UNIFIED FEED</span>
+      <div class="news-source-bar">AP + GUARDIAN ◆ WORLD HEADLINES</div>
+      <div class="news-scroll-wrap">
+        <div class="news-scroll" id="unified-scroll">
+          <div class="tel-offline">ACQUIRING SIGNAL...</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /main -->
+
+<!-- ── BOTTOM BAR ── -->
+<footer class="bottom-bar">
+  <span>◆ CONSOLE v1.0</span>
+  <span class="bsep">│</span>
+  <span>WTI <span class="bval" id="bar-wti">--</span></span>
+  <span class="bsep">│</span>
+  <span>TEMP <span class="bval" id="bar-temp">--</span></span>
+  <span class="bsep">│</span>
+  <span>NET <span class="bval bup">ONLINE</span></span>
+  <span class="bsync" id="bar-sync">FEEDS SYNCING ◆</span>
+</footer>
+
+<script>
+  /* ── CONFIG ── */
+  const CFG = {
+    title:          localStorage.getItem('cfg_title')          || 'STATION CONSOLE · UNIT-7',
+    location:       localStorage.getItem('cfg_location')       || 'Austin, TX',
+    newsInterval:   parseInt(localStorage.getItem('cfg_news_interval')    || '5',  10) * 60000,
+    weatherInterval:parseInt(localStorage.getItem('cfg_weather_interval') || '10', 10) * 60000,
+    oilInterval:    parseInt(localStorage.getItem('cfg_oil_interval')     || '2',  10) * 60000,
+    topic1Url:      localStorage.getItem('cfg_topic1_url')     || '',
+    topic1Label:    localStorage.getItem('cfg_topic1_label')   || 'TOPIC FEED',
+    topic1Active:   localStorage.getItem('cfg_topic1_active')  === 'true',
+    topic2Url:      localStorage.getItem('cfg_topic2_url')     || '',
+    topic2Label:    localStorage.getItem('cfg_topic2_label')   || 'TOPIC FEED 2',
+    topic2Active:   localStorage.getItem('cfg_topic2_active')  === 'true',
+    showAP:         localStorage.getItem('cfg_show_ap')        !== 'false',
+    showGuardian:   localStorage.getItem('cfg_show_guardian')  !== 'false',
+    catFilter:      JSON.parse(localStorage.getItem('cfg_cat_filter') || '["WORLD","TECH","MARKET","SCI","ENV"]'),
+  };
+
+  /* ── CONSTANTS ── */
+  const PROXY = 'https://api.allorigins.win/get?url=';
+
+  const WMO = {
+    0:'☀ Clear', 1:'🌤 Mainly Clear', 2:'⛅ Partly Cloudy', 3:'☁ Overcast',
+    45:'🌫 Foggy', 48:'🌫 Icy Fog',
+    51:'🌦 Lt Drizzle', 53:'🌦 Drizzle', 55:'🌧 Hvy Drizzle',
+    61:'🌧 Lt Rain', 63:'🌧 Rain', 65:'🌧 Hvy Rain',
+    71:'🌨 Lt Snow', 73:'❄ Snow', 75:'❄ Hvy Snow',
+    80:'🌦 Showers', 81:'🌧 Hvy Showers', 95:'⛈ Thunderstorm',
+  };
+
+  const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+  /* ── CLOCK ── */
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toTimeString().slice(0, 8);
+    document.getElementById('date-display').textContent =
+      `${DOW[now.getDay()]} ${now.toDateString().slice(4).toUpperCase()}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* ── TITLE ── */
+  document.getElementById('header-title').textContent = CFG.title;
+  document.title = CFG.title;
+
+  /* ── WEATHER ── */
+  async function fetchWeather() {
+    const loc = CFG.location;
+    try {
+      const geoRes  = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(loc)}&count=1&language=en&format=json`);
+      const geoData = await geoRes.json();
+      if (!geoData.results?.length) throw new Error('Location not found');
+      const { latitude: lat, longitude: lon, name, country_code } = geoData.results[0];
+
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+        + `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure,weather_code`
+        + `&daily=temperature_2m_max,temperature_2m_min,weather_code`
+        + `&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=4`;
+      const wxRes  = await fetch(url);
+      const wx     = await wxRes.json();
+      const c      = wx.current;
+      const d      = wx.daily;
+
+      renderWeather({
+        temp:     Math.round(c.temperature_2m),
+        cond:     WMO[c.weather_code] || '? Unknown',
+        humidity: c.relative_humidity_2m,
+        wind:     Math.round(c.wind_speed_10m),
+        pressure: Math.round(c.surface_pressure),
+        location: `${name}, ${country_code.toUpperCase()}`,
+        forecast: d.time.slice(1, 4).map((t, i) => ({
+          day:  DOW[new Date(t).getDay()],
+          icon: (WMO[d.weather_code[i+1]] || '?').split(' ')[0],
+          hi:   Math.round(d.temperature_2m_max[i+1]),
+          lo:   Math.round(d.temperature_2m_min[i+1]),
+        })),
+      });
+    } catch (e) {
+      document.getElementById('wx-content').innerHTML =
+        `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+    }
+  }
+
+  function renderWeather({ temp, cond, humidity, wind, pressure, location, forecast }) {
+    const icon = cond.split(' ')[0];
+    const desc = cond.split(' ').slice(1).join(' ').toUpperCase();
+    document.getElementById('wx-content').innerHTML = `
+      <div class="wx-icon">${icon}</div>
+      <div class="wx-temp">${temp}°F</div>
+      <div class="wx-cond">${desc}</div>
+      <div class="wx-row">
+        <div><span class="wx-key">LOCATION</span>${location}</div>
+        <div><span class="wx-key">HUMIDITY</span><span style="color:var(--cyan)">${humidity}%</span></div>
+        <div><span class="wx-key">WIND</span>${wind} mph</div>
+        <div><span class="wx-key">PRESSURE</span>${pressure} hPa</div>
+      </div>
+      <div class="wx-forecast">
+        ${forecast.map(f => `
+          <div class="wx-day">
+            <div class="wx-day-label">${f.day}</div>
+            <div>${f.icon}</div>
+            <div style="color:var(--green)">${f.hi}°</div>
+            <div style="color:var(--green-mid)">${f.lo}°</div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  fetchWeather();
+
+  /* ── PROXY HELPER ── */
+  async function fetchProxied(url) {
+    const res  = await fetch(PROXY + encodeURIComponent(url));
+    const data = await res.json();
+    if (!data.contents) throw new Error('Proxy returned no contents');
+    return data.contents;
+  }
+
+  /* ── COMMODITIES ── */
+  const SYMBOLS = [
+    { sym: 'CL=F',  label: 'WTI CRUDE',  primary: true  },
+    { sym: 'BZ=F',  label: 'BRENT',      primary: false },
+    { sym: 'NG=F',  label: 'NAT GAS',    primary: false },
+    { sym: 'GC=F',  label: 'GOLD',       primary: false },
+  ];
+
+  let wtiPrice = null;
+  let wtiDir   = '';
+
+  async function fetchQuote(symbol) {
+    const url  = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=10d`;
+    const raw  = await fetchProxied(url);
+    const data = JSON.parse(raw);
+    const res  = data.chart.result[0];
+    const price    = res.meta.regularMarketPrice;
+    const prevClose= res.meta.chartPreviousClose;
+    const closes   = (res.indicators.quote[0].close || []).filter(Boolean);
+    const change   = price - prevClose;
+    const changePct= (change / prevClose) * 100;
+    return { price, change, changePct, closes };
+  }
+
+  async function fetchCommodities() {
+    try {
+      const primary = await fetchQuote(SYMBOLS[0].sym);
+      wtiPrice = primary.price.toFixed(2);
+      wtiDir   = primary.change >= 0 ? '▲' : '▼';
+
+      const secondaryData = await Promise.allSettled(
+        SYMBOLS.slice(1).map(s => fetchQuote(s.sym))
+      );
+
+      renderCommodities(primary, secondaryData, SYMBOLS);
+      document.getElementById('bar-wti').textContent =
+        `$${wtiPrice} ${primary.change >= 0 ? '▲' : '▼'}`;
+    } catch (e) {
+      document.getElementById('com-content').innerHTML =
+        `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+    }
+  }
+
+  function renderCommodities(primary, secondaryResults, symbols) {
+    const upCls = primary.change >= 0 ? 'up' : 'down';
+    const sign  = primary.change >= 0 ? '+' : '';
+
+    const closes = primary.closes.slice(-9);
+    const mn = Math.min(...closes), mx = Math.max(...closes);
+    const bars = closes.map(c => {
+      const h = mx === mn ? 14 : Math.round(4 + ((c - mn) / (mx - mn)) * 24);
+      return `<div class="com-bar" style="height:${h}px"></div>`;
+    }).join('');
+
+    const secRows = symbols.slice(1).map((s, i) => {
+      const r = secondaryResults[i];
+      if (r.status === 'rejected') return `<div>${s.label} <span>--</span></div>`;
+      const { price, change } = r.value;
+      const cls = change >= 0 ? 'up' : 'down';
+      return `<div>${s.label} <span class="${cls}">$${price.toFixed(2)} ${change >= 0 ? '▲' : '▼'}</span></div>`;
+    }).join('');
+
+    document.getElementById('com-content').innerHTML = `
+      <div class="com-name">WTI CRUDE OIL</div>
+      <div class="com-price ${upCls}">$${primary.price.toFixed(2)}</div>
+      <div class="com-change ${upCls}">${wtiDir} ${sign}${primary.change.toFixed(2)} (${sign}${primary.changePct.toFixed(2)}%)</div>
+      <div class="com-chart">${bars}</div>
+      <div class="com-secondary">${secRows}</div>`;
+  }
+
+  fetchCommodities();
+
+  /* ── RADAR ── */
+  function initRadar() {
+    const canvas = document.getElementById('radar');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const r  = Math.min(cx, cy) - 6;
+    let angle = 0;
+
+    const blips = Array.from({ length: 7 }, () => ({
+      a: Math.random() * Math.PI * 2,
+      d: Math.random() * 0.78 + 0.15,
+      alpha: 0,
+    }));
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#020504';
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+
+      [0.25, 0.5, 0.75, 1].forEach(f => {
+        ctx.beginPath(); ctx.arc(cx, cy, r * f, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,255,65,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+      });
+
+      ctx.strokeStyle = 'rgba(0,255,65,0.1)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+      for (let i = 0; i < 28; i++) {
+        const a0 = angle - (Math.PI * 0.6) * (i / 28);
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, a0, a0 + (Math.PI * 0.6) / 28);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(0,255,65,${(1 - i / 28) * 0.2})`;
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+      ctx.strokeStyle = 'rgba(0,255,65,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      blips.forEach(b => {
+        const diff = ((angle - b.a) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        if (diff < 0.1) b.alpha = 1;
+        else b.alpha *= 0.988;
+        if (b.alpha > 0.04) {
+          const bx = cx + Math.cos(b.a) * r * b.d;
+          const by = cy + Math.sin(b.a) * r * b.d;
+          ctx.beginPath(); ctx.arc(bx, by, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(0,255,65,${b.alpha})`;
+          ctx.shadowColor = '#00ff41'; ctx.shadowBlur = 8;
+          ctx.fill(); ctx.shadowBlur = 0;
+        }
+      });
+
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,255,65,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+
+      angle = (angle + 0.022) % (Math.PI * 2);
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  initRadar();
+
+  /* ── RSS UTILITIES ── */
+  function parseRSS(xmlString) {
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(xmlString, 'text/xml');
+    const items  = Array.from(doc.querySelectorAll('item'));
+    return items.map(item => {
+      const title   = item.querySelector('title')?.textContent?.trim() || '';
+      const pubDate = item.querySelector('pubDate')?.textContent?.trim() || '';
+      const cats    = Array.from(item.querySelectorAll('category')).map(c => c.textContent?.trim());
+      return { title, pubDate, cats, date: pubDate ? new Date(pubDate) : new Date() };
+    }).filter(i => i.title);
+  }
+
+  async function fetchRSS(url) {
+    const contents = await fetchProxied(url);
+    return parseRSS(contents);
+  }
+
+  function guessCategory(title, cats) {
+    const all = [title, ...cats].join(' ').toLowerCase();
+    if (/tech|ai|software|cyber|crypto|internet|app|digital/.test(all)) return 'TECH';
+    if (/market|stock|economy|finance|trade|oil|gold|bank|gdp|inflation/.test(all)) return 'MARKET';
+    if (/climate|environment|carbon|emission|wildlife|ocean|forest/.test(all)) return 'ENV';
+    if (/science|research|study|space|nasa|planet|discovery|physics/.test(all)) return 'SCI';
+    return 'WORLD';
+  }
+
+  function fmtTime(date) {
+    try {
+      return date.toTimeString().slice(0, 5);
+    } catch { return '--:--'; }
+  }
+
+  function makeNewsItem(item, srcCls, srcLabel) {
+    const cat = guessCategory(item.title, item.cats);
+    const el  = document.createElement('div');
+    el.className = 'news-item';
+    el.innerHTML = `
+      <span class="ni-time">${fmtTime(item.date)}</span>
+      <span class="ni-src ${srcCls}">${srcLabel}</span>
+      <span class="ni-cat cat-${cat}">${cat}</span>
+      <span class="ni-text">${item.title}</span>`;
+    return el;
+  }
+
+  function populateFeed(scrollEl, items, srcCls, srcLabel, maxItems = 20) {
+    const filtered = items.slice(0, maxItems);
+    if (!filtered.length) return;
+    scrollEl.innerHTML = '';
+    filtered.forEach((item, i) => {
+      const el = makeNewsItem(item, srcCls, srcLabel);
+      el.style.animationDelay = `${i * 80}ms`;
+      scrollEl.appendChild(el);
+    });
+  }
+
+  function prependNewsItem(scrollEl, item, srcCls, srcLabel, maxItems = 20) {
+    const el = makeNewsItem(item, srcCls, srcLabel);
+    scrollEl.insertBefore(el, scrollEl.firstChild);
+    while (scrollEl.children.length > maxItems) {
+      scrollEl.removeChild(scrollEl.lastChild);
+    }
+  }
+
+  /* ── TOPIC FEEDS ── */
+  const AP_TOPIC_BASE       = 'https://feeds.apnews.com/rss/apf-';
+  const GUARDIAN_TOPIC_BASE = 'https://www.theguardian.com/';
+
+  function buildTopicUrls(cfg) {
+    if (cfg.url) return [{ url: cfg.url, src: 'custom' }];
+    const urls = [];
+    const kw   = encodeURIComponent(cfg.keyword || '');
+    if (!kw) return [];
+    if (cfg.source === 'ap' || cfg.source === 'both') {
+      urls.push({ url: `${AP_TOPIC_BASE}${kw}`, src: 'ap' });
+    }
+    if (cfg.source === 'guardian' || cfg.source === 'both') {
+      urls.push({ url: `${GUARDIAN_TOPIC_BASE}${encodeURIComponent(cfg.keyword)}/rss`, src: 'grd' });
+    }
+    return urls;
+  }
+
+  function topicConfig(n) {
+    return {
+      url:     localStorage.getItem(`cfg_topic${n}_url`)     || '',
+      keyword: localStorage.getItem(`cfg_topic${n}_keyword`) || '',
+      source:  localStorage.getItem(`cfg_topic${n}_source`)  || 'both',
+      label:   localStorage.getItem(`cfg_topic${n}_label`)   || `TOPIC FEED ${n}`,
+      active:  localStorage.getItem(`cfg_topic${n}_active`)  === 'true',
+    };
+  }
+
+  async function fetchTopicFeed(n) {
+    const cfg    = topicConfig(n);
+    const panel  = document.getElementById(`topic-panel-${n}`);
+    const srcBar = document.getElementById(`topic-source-${n}`);
+    const scroll = document.getElementById(`topic-scroll-${n}`);
+
+    if (!cfg.active || (!cfg.url && !cfg.keyword)) {
+      if (n === 1) panel.style.display = 'flex';
+      if (n === 2) panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'flex';
+    panel.querySelector('.panel-label').innerHTML =
+      `<span class="live-dot"></span>LIVE · ${cfg.label.toUpperCase()}`;
+    srcBar.textContent = `${cfg.source.toUpperCase()} ◆ LIVE FEED ◆ AUTO-REFRESH`;
+
+    const targets = buildTopicUrls(cfg);
+    if (!targets.length) return;
+
+    try {
+      const results = await Promise.allSettled(
+        targets.map(t => fetchRSS(t.url).then(items => ({ items, src: t.src })))
+      );
+
+      const allItems = results
+        .filter(r => r.status === 'fulfilled')
+        .flatMap(r => r.value.items.map(i => ({ ...i, src: r.value.src })));
+
+      allItems.sort((a, b) => b.date - a.date);
+
+      if (!allItems.length) {
+        scroll.innerHTML = `<div class="topic-empty">NO STORIES FOUND<br>CHECK FEED URL IN SETTINGS</div>`;
+        return;
+      }
+
+      scroll.innerHTML = '';
+      allItems.slice(0, 25).forEach((item, i) => {
+        const srcCls = item.src === 'ap' ? 'ap' : item.src === 'grd' ? 'grd' : 'ap';
+        const srcLbl = item.src === 'ap' ? 'AP' : item.src === 'grd' ? 'GRD' : 'RSS';
+        const el = makeNewsItem(item, srcCls, srcLbl);
+        el.style.animationDelay = `${i * 60}ms`;
+        scroll.appendChild(el);
+      });
+    } catch (e) {
+      scroll.innerHTML = `<div class="signal-lost">⚠ SIGNAL LOST<br>RETRYING...</div>`;
+    }
+  }
+
+  function layoutTopicPanels() {
+    const t1 = topicConfig(1);
+    const t2 = topicConfig(2);
+    const p1 = document.getElementById('topic-panel-1');
+    const p2 = document.getElementById('topic-panel-2');
+    const u  = document.querySelector('.unified-panel');
+
+    const bothActive = t1.active && (t1.url || t1.keyword) && t2.active && (t2.url || t2.keyword);
+    if (bothActive) {
+      p1.style.flex = '2'; p2.style.flex = '2'; u.style.flex = '1';
+    } else {
+      p1.style.flex = '3'; p2.style.display = 'none'; u.style.flex = '2';
+    }
+  }
+
+  layoutTopicPanels();
+  fetchTopicFeed(1);
+  fetchTopicFeed(2);
+
+  /* ── UNIFIED FEED ── */
+  const AP_TOP_URL  = 'https://feeds.apnews.com/rss/apf-topnews';
+  const GRD_TOP_URL = 'https://www.theguardian.com/world/rss';
+
+  async function fetchUnifiedFeed() {
+    const scroll = document.getElementById('unified-scroll');
+    const sources = [];
+    if (CFG.showAP)       sources.push(fetchRSS(AP_TOP_URL).then(items => items.map(i => ({ ...i, src: 'ap' }))));
+    if (CFG.showGuardian) sources.push(fetchRSS(GRD_TOP_URL).then(items => items.map(i => ({ ...i, src: 'grd' }))));
+
+    if (!sources.length) {
+      scroll.innerHTML = `<div class="tel-offline">ALL SOURCES DISABLED IN SETTINGS</div>`;
+      return;
+    }
+
+    try {
+      const results = await Promise.allSettled(sources);
+      const allItems = results
+        .filter(r => r.status === 'fulfilled')
+        .flatMap(r => r.value)
+        .filter(i => CFG.catFilter.includes(guessCategory(i.title, i.cats)));
+
+      allItems.sort((a, b) => b.date - a.date);
+
+      if (!allItems.length) {
+        scroll.innerHTML = `<div class="signal-lost">⚠ SIGNAL LOST · RETRYING...</div>`;
+        return;
+      }
+
+      scroll.innerHTML = '';
+      allItems.slice(0, 30).forEach((item, i) => {
+        const srcCls = item.src;
+        const srcLbl = item.src === 'ap' ? 'AP' : 'GRD';
+        const el = makeNewsItem(item, srcCls, srcLbl);
+        el.style.animationDelay = `${i * 50}ms`;
+        scroll.appendChild(el);
+      });
+
+      document.getElementById('bar-sync').textContent =
+        `SYNCED ${new Date().toTimeString().slice(0,5)} ◆`;
+    } catch (e) {
+      scroll.innerHTML = `<div class="signal-lost">⚠ SIGNAL LOST · RETRYING...</div>`;
+    }
+  }
+
+  fetchUnifiedFeed();
+
+  /* ── AUTO-REFRESH ── */
+  setInterval(fetchWeather,       CFG.weatherInterval);
+  setInterval(fetchCommodities,   CFG.oilInterval);
+  setInterval(() => {
+    fetchUnifiedFeed();
+    fetchTopicFeed(1);
+    fetchTopicFeed(2);
+  }, CFG.newsInterval);
+
+  /* ── FULLSCREEN ── */
+  function toggleFullscreen() {
+    const btn = document.getElementById('btn-fullscreen');
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        btn.textContent = '✕ EXIT';
+      }).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => {
+        btn.textContent = '⛶ FULL';
+      }).catch(() => {});
+    }
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    const btn = document.getElementById('btn-fullscreen');
+    if (!document.fullscreenElement) btn.textContent = '⛶ FULL';
+  });
+
+  /* ── BOTTOM BAR ── */
+  document.getElementById('bar-temp').textContent = 'OFFLINE';
+  document.getElementById('bar-temp').style.color = 'var(--green-mid)';
+
+  const startTime = Date.now();
+  setInterval(() => {
+    const s   = Math.floor((Date.now() - startTime) / 1000);
+    const h   = Math.floor(s / 3600).toString().padStart(2, '0');
+    const m   = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    const subEl = document.querySelector('.header-sub');
+    if (subEl) subEl.textContent = `SYS STATUS: NOMINAL ◆ SESSION ${h}:${m}:${sec}`;
+  }, 1000);
+</script>
+
+</body>
+</html>

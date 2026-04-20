@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Settings</title>
+  <style>
+    body { font-family: monospace; max-width: 640px; margin: 0 auto; padding: 24px 20px; background: #f5f5f5; }
+    h1   { font-size: 18px; margin-bottom: 4px; }
+    .back { display: inline-block; margin-bottom: 20px; font-size: 13px; }
+    .section { background: #fff; border: 1px solid #ccc; padding: 16px 20px; margin-bottom: 16px; }
+    .section h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #555; margin-bottom: 14px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    label { display: block; font-size: 12px; font-weight: bold; margin-top: 10px; margin-bottom: 3px; }
+    input[type=text], input[type=number], select {
+      width: 100%; padding: 6px 8px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; box-sizing: border-box;
+    }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    .check-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; }
+    .check-row input { width: auto; }
+    .check-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+    button[type=submit] { margin-top: 20px; padding: 10px 28px; font-family: monospace; font-size: 13px; cursor: pointer; background: #222; color: #fff; border: none; }
+    button[type=submit]:hover { background: #444; }
+    .saved-msg { display: none; color: green; font-size: 12px; margin-top: 8px; }
+    small { color: #888; font-size: 10px; display: block; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <a class="back" href="index.html">← Back to Dashboard</a>
+  <h1>Dashboard Settings</h1>
+
+  <form id="settings-form">
+
+    <div class="section">
+      <h2>General</h2>
+      <label for="title">Dashboard Title</label>
+      <input type="text" id="title" placeholder="STATION CONSOLE · UNIT-7">
+
+      <label for="location">Weather Location</label>
+      <input type="text" id="location" placeholder="Austin, TX">
+      <small>City name or city, country (e.g. "London, GB")</small>
+    </div>
+
+    <div class="section">
+      <h2>Topic Feed 1</h2>
+      <div class="check-row">
+        <input type="checkbox" id="topic1_active">
+        <label for="topic1_active" style="margin:0">Enable Topic Feed 1</label>
+      </div>
+      <label for="topic1_label">Feed Label</label>
+      <input type="text" id="topic1_label" placeholder="Iran Crisis">
+      <label for="topic1_source">Source</label>
+      <select id="topic1_source">
+        <option value="both">AP + Guardian</option>
+        <option value="ap">AP Only</option>
+        <option value="guardian">Guardian Only</option>
+        <option value="custom">Custom RSS URL</option>
+      </select>
+      <label for="topic1_keyword">Topic Keyword</label>
+      <input type="text" id="topic1_keyword" placeholder="iran">
+      <small>Used to build RSS URL. e.g. "iran", "ukraine", "climate"</small>
+      <label for="topic1_url">— OR — Custom RSS URL</label>
+      <input type="text" id="topic1_url" placeholder="https://...">
+      <small>Overrides keyword if set. Must be a valid RSS/Atom feed URL.</small>
+    </div>
+
+    <div class="section">
+      <h2>Topic Feed 2</h2>
+      <div class="check-row">
+        <input type="checkbox" id="topic2_active">
+        <label for="topic2_active" style="margin:0">Enable Topic Feed 2</label>
+      </div>
+      <label for="topic2_label">Feed Label</label>
+      <input type="text" id="topic2_label" placeholder="Ukraine War">
+      <label for="topic2_source">Source</label>
+      <select id="topic2_source">
+        <option value="both">AP + Guardian</option>
+        <option value="ap">AP Only</option>
+        <option value="guardian">Guardian Only</option>
+        <option value="custom">Custom RSS URL</option>
+      </select>
+      <label for="topic2_keyword">Topic Keyword</label>
+      <input type="text" id="topic2_keyword" placeholder="ukraine">
+      <label for="topic2_url">— OR — Custom RSS URL</label>
+      <input type="text" id="topic2_url" placeholder="https://...">
+    </div>
+
+    <div class="section">
+      <h2>Unified Feed</h2>
+      <label>Sources</label>
+      <div class="check-group">
+        <div class="check-row"><input type="checkbox" id="show_ap"> <label for="show_ap" style="margin:0">AP News</label></div>
+        <div class="check-row"><input type="checkbox" id="show_guardian"> <label for="show_guardian" style="margin:0">The Guardian</label></div>
+      </div>
+      <label>Categories to show</label>
+      <div class="check-group">
+        <div class="check-row"><input type="checkbox" id="cat_WORLD">  <label for="cat_WORLD"  style="margin:0">WORLD</label></div>
+        <div class="check-row"><input type="checkbox" id="cat_TECH">   <label for="cat_TECH"   style="margin:0">TECH</label></div>
+        <div class="check-row"><input type="checkbox" id="cat_MARKET"> <label for="cat_MARKET" style="margin:0">MARKET</label></div>
+        <div class="check-row"><input type="checkbox" id="cat_SCI">    <label for="cat_SCI"    style="margin:0">SCI</label></div>
+        <div class="check-row"><input type="checkbox" id="cat_ENV">    <label for="cat_ENV"    style="margin:0">ENV</label></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Refresh Intervals</h2>
+      <div class="row">
+        <div>
+          <label for="weather_interval">Weather (minutes)</label>
+          <input type="number" id="weather_interval" min="1" max="60" value="10">
+        </div>
+        <div>
+          <label for="news_interval">News (minutes)</label>
+          <input type="number" id="news_interval" min="1" max="60" value="5">
+        </div>
+        <div>
+          <label for="oil_interval">Oil (minutes)</label>
+          <input type="number" id="oil_interval" min="1" max="60" value="2">
+        </div>
+      </div>
+    </div>
+
+    <button type="submit">SAVE AND RETURN TO DASHBOARD</button>
+    <div class="saved-msg" id="saved-msg">✓ Settings saved. Redirecting...</div>
+  </form>
+
+  <script>
+    const KEYS = [
+      'title','location',
+      'topic1_active','topic1_label','topic1_source','topic1_keyword','topic1_url',
+      'topic2_active','topic2_label','topic2_source','topic2_keyword','topic2_url',
+      'show_ap','show_guardian',
+      'cat_WORLD','cat_TECH','cat_MARKET','cat_SCI','cat_ENV',
+      'weather_interval','news_interval','oil_interval',
+    ];
+
+    // Load saved values
+    KEYS.forEach(key => {
+      const el  = document.getElementById(key);
+      const val = localStorage.getItem('cfg_' + key);
+      if (!el || val === null) return;
+      if (el.type === 'checkbox') el.checked = val === 'true';
+      else el.value = val;
+    });
+
+    // Defaults for checkboxes if not yet set
+    ['show_ap','show_guardian','cat_WORLD','cat_TECH','cat_MARKET','cat_SCI','cat_ENV'].forEach(key => {
+      const el = document.getElementById(key);
+      if (localStorage.getItem('cfg_' + key) === null) el.checked = true;
+    });
+
+    // Save
+    document.getElementById('settings-form').addEventListener('submit', e => {
+      e.preventDefault();
+      KEYS.forEach(key => {
+        const el = document.getElementById(key);
+        if (!el) return;
+        const val = el.type === 'checkbox' ? String(el.checked) : el.value;
+        localStorage.setItem('cfg_' + key, val);
+      });
+      // Rebuild cat_filter array for dashboard
+      const cats = ['WORLD','TECH','MARKET','SCI','ENV']
+        .filter(c => document.getElementById('cat_' + c).checked);
+      localStorage.setItem('cfg_cat_filter', JSON.stringify(cats));
+
+      document.getElementById('saved-msg').style.display = 'block';
+      setTimeout(() => { window.location.href = 'index.html'; }, 800);
+    });
+  </script>
+</body>
+</html>
