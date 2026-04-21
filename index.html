@@ -581,6 +581,53 @@
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+    /* ── WIDGET MODAL ── */
+    .widget-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 10000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .widget-modal-panel {
+      width: 500px; max-width: 92vw;
+      border: 1px solid var(--green-mid);
+      background: var(--bg-dark);
+      padding: 18px 20px 20px;
+      position: relative;
+      box-shadow: 0 0 40px rgba(0,255,65,0.12), inset 0 0 20px rgba(0,0,0,0.5);
+    }
+    .widget-modal-panel::before { content: '◆'; position: absolute; top: 3px; left:  4px; font-size: 6px; color: var(--green-mid); }
+    .widget-modal-panel::after  { content: '◆'; position: absolute; top: 3px; right: 4px; font-size: 6px; color: var(--green-mid); }
+    .wm-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; padding-top: 4px;
+    }
+    .wm-title { font-size: 10px; letter-spacing: 3px; color: var(--green-mid); }
+    .wm-section {
+      font-size: 8px; letter-spacing: 2px; color: var(--green-dim);
+      margin-bottom: 8px; padding-bottom: 4px;
+      border-bottom: 1px solid var(--green-dim);
+    }
+    .widget-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px; margin-bottom: 14px;
+    }
+    .widget-card {
+      border: 1px solid var(--green-dim);
+      background: var(--bg);
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .widget-card:hover  { border-color: var(--green-mid); background: rgba(0,255,65,0.03); }
+    .widget-card.wc-on  { border-color: var(--green-mid); background: rgba(0,255,65,0.05); }
+    .wc-label  { font-size: 10px; letter-spacing: 2px; color: var(--green); margin-bottom: 3px; }
+    .wc-desc   { font-size: 8px; color: var(--green-dim); margin-bottom: 7px; line-height: 1.5; }
+    .wc-toggle { font-size: 10px; letter-spacing: 1px; }
+    .wc-toggle.on  { color: var(--green-pos); }
+    .wc-toggle.off { color: var(--green-dim); }
   </style>
 </head>
 <body>
@@ -600,6 +647,7 @@
         <div class="light amber"></div>
         <div class="light red"></div>
       </div>
+      <button class="btn-icon" onclick="openWidgetModal()">⊞ WIDGETS</button>
       <a class="btn-icon" href="settings.html">⚙ SETTINGS</a>
       <button class="btn-icon" id="btn-fullscreen" onclick="toggleFullscreen()">⛶ FULL</button>
     </div>
@@ -630,13 +678,13 @@
     </div>
 
     <!-- TELEMETRY -->
-    <div class="panel" style="flex-shrink:0;">
+    <div class="panel" id="telemetry-panel" style="flex-shrink:0;">
       <span class="panel-label">◈ SYSTEM TELEMETRY</span>
       <div class="tel-offline">TELEMETRY OFFLINE<br>NODE MODULE REQUIRED<br>── v2 feature ──</div>
     </div>
 
     <!-- RADAR -->
-    <div class="panel" style="flex-shrink:0;">
+    <div class="panel" id="radar-panel" style="flex-shrink:0;">
       <span class="panel-label">◈ NETWORK SCAN</span>
       <div class="radar-wrap">
         <canvas id="radar" width="170" height="130"></canvas>
@@ -677,7 +725,7 @@
     </div>
 
     <!-- UNIFIED FEED -->
-    <div class="panel unified-panel" style="flex:2;min-height:0;">
+    <div class="panel unified-panel" id="unified-panel" style="flex:2;min-height:0;">
       <span class="panel-label">◈ UNIFIED FEED</span>
       <div class="news-source-bar">AP + GUARDIAN ◆ WORLD HEADLINES</div>
       <div class="news-scroll-wrap">
@@ -690,6 +738,20 @@
   </div><!-- /content -->
 
 </div><!-- /main -->
+
+<!-- ── WIDGET MODAL ── -->
+<div id="widget-modal" class="widget-modal-backdrop" style="display:none;" onclick="onModalBackdropClick(event)">
+  <div class="widget-modal-panel">
+    <div class="wm-header">
+      <div class="wm-title">◈ WIDGET SELECTOR</div>
+      <button class="btn-icon" onclick="closeWidgetModal()">✕ CLOSE</button>
+    </div>
+    <div class="wm-section">SIDEBAR PANELS</div>
+    <div class="widget-grid" id="wm-grid-sidebar"></div>
+    <div class="wm-section">CONTENT PANELS</div>
+    <div class="widget-grid" id="wm-grid-content"></div>
+  </div>
+</div>
 
 <!-- ── BOTTOM BAR ── -->
 <footer class="bottom-bar">
@@ -747,6 +809,93 @@
     showGuardian:   localStorage.getItem('cfg_show_guardian')  !== 'false',
     catFilter:      JSON.parse(localStorage.getItem('cfg_cat_filter') || '["WORLD","TECH","MARKET","SCI","ENV"]'),
   };
+
+  /* ── WIDGET VISIBILITY ── */
+  const WIDGET_DEFS = [
+    { id: 'weather-panel',     label: 'ATMOSPHERIC',   desc: 'Weather & 3-day forecast',   group: 'sidebar', defaultOn: true  },
+    { id: 'commodities-panel', label: 'COMMODITIES',   desc: 'Oil, gas & gold prices',     group: 'sidebar', defaultOn: true  },
+    { id: 'telemetry-panel',   label: 'SYS TELEMETRY', desc: 'CPU/RAM/disk (v2)',          group: 'sidebar', defaultOn: true  },
+    { id: 'radar-panel',       label: 'NETWORK SCAN',  desc: 'Radar animation',            group: 'sidebar', defaultOn: true  },
+    { id: 'dev-console-panel', label: 'SYS LOG',       desc: 'Debug console output',       group: 'sidebar', defaultOn: true  },
+    { id: 'topic-panel-1',     label: 'TOPIC FEED 1',  desc: 'Primary keyword news feed',  group: 'content', defaultOn: true  },
+    { id: 'topic-panel-2',     label: 'TOPIC FEED 2',  desc: 'Secondary keyword news feed',group: 'content', defaultOn: false },
+    { id: 'unified-panel',     label: 'UNIFIED FEED',  desc: 'AP + Guardian headlines',    group: 'content', defaultOn: true  },
+  ];
+
+  // When restoring visibility, dev-console-panel needs explicit 'flex' (inline style)
+  // Content panels get '' which lets the CSS class (display:flex) take over
+  const WIDGET_RESTORE_DISPLAY = { 'dev-console-panel': 'flex' };
+
+  function getWidgetVisible(id) {
+    const stored = localStorage.getItem(`cfg_widget_${id}`);
+    if (stored === null) {
+      const def = WIDGET_DEFS.find(w => w.id === id);
+      return def ? def.defaultOn : true;
+    }
+    return stored === 'true';
+  }
+
+  function setWidgetVisible(id, visible) {
+    localStorage.setItem(`cfg_widget_${id}`, visible ? 'true' : 'false');
+    _applyWidgetDisplay(id, visible);
+    _updateSidebarPresence();
+  }
+
+  function _applyWidgetDisplay(id, visible) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = visible ? (WIDGET_RESTORE_DISPLAY[id] || '') : 'none';
+  }
+
+  function _updateSidebarPresence() {
+    const sidebarIds = WIDGET_DEFS.filter(w => w.group === 'sidebar').map(w => w.id);
+    const anyVisible = sidebarIds.some(id => getWidgetVisible(id));
+    document.querySelector('.sidebar').style.display = anyVisible ? '' : 'none';
+  }
+
+  function applyAllWidgetVisibility() {
+    WIDGET_DEFS.forEach(w => _applyWidgetDisplay(w.id, getWidgetVisible(w.id)));
+    _updateSidebarPresence();
+  }
+
+  /* ── WIDGET MODAL ── */
+  function openWidgetModal() {
+    _renderWidgetModal();
+    document.getElementById('widget-modal').style.display = 'flex';
+  }
+
+  function closeWidgetModal() {
+    document.getElementById('widget-modal').style.display = 'none';
+  }
+
+  function onModalBackdropClick(e) {
+    if (e.target === document.getElementById('widget-modal')) closeWidgetModal();
+  }
+
+  function toggleWidget(id) {
+    const newVal = !getWidgetVisible(id);
+    setWidgetVisible(id, newVal);
+    // Re-render modal to reflect change
+    _renderWidgetModal();
+    // Re-run topic layout since feed panels may have changed
+    layoutTopicPanels();
+  }
+
+  function _renderWidgetModal() {
+    ['sidebar', 'content'].forEach(group => {
+      const grid = document.getElementById(`wm-grid-${group}`);
+      grid.innerHTML = WIDGET_DEFS
+        .filter(w => w.group === group)
+        .map(w => {
+          const on = getWidgetVisible(w.id);
+          return `<div class="widget-card ${on ? 'wc-on' : ''}" onclick="toggleWidget('${w.id}')">
+            <div class="wc-label">${w.label}</div>
+            <div class="wc-desc">${w.desc}</div>
+            <div class="wc-toggle ${on ? 'on' : 'off'}">${on ? '■ ON' : '□ OFF'}</div>
+          </div>`;
+        }).join('');
+    });
+  }
 
   /* ── CONSTANTS ── */
   const PROXY = 'https://corsproxy.io/?';
@@ -1348,6 +1497,9 @@
   }
 
   async function fetchTopicFeed(n) {
+    // Don't touch display if the widget is hidden via widget selector
+    if (!getWidgetVisible(`topic-panel-${n}`)) return;
+
     const cfg    = topicConfig(n);
     const panel  = document.getElementById(`topic-panel-${n}`);
     const srcBar = document.getElementById(`topic-source-${n}`);
@@ -1356,8 +1508,7 @@
     // Only skip if user explicitly disabled the feed, or no keyword/url is set at all
     const isExplicitlyDisabled = localStorage.getItem(`cfg_topic${n}_active`) === 'false';
     if (isExplicitlyDisabled || (!cfg.url && !cfg.keyword)) {
-      if (n === 1) panel.style.display = 'flex';
-      if (n === 2) panel.style.display = 'none';
+      panel.style.display = 'flex';
       return;
     }
 
@@ -1434,18 +1585,25 @@
     const t2 = topicConfig(2);
     const p1 = document.getElementById('topic-panel-1');
     const p2 = document.getElementById('topic-panel-2');
-    const u  = document.querySelector('.unified-panel');
+    const u  = document.getElementById('unified-panel');
 
-    const t1Active = (t1.url || t1.keyword) && localStorage.getItem('cfg_topic1_active') !== 'false';
-    const t2Active = (t2.url || t2.keyword) && localStorage.getItem('cfg_topic2_active') !== 'false';
+    const t1Visible = getWidgetVisible('topic-panel-1');
+    const t2Visible = getWidgetVisible('topic-panel-2');
+    const uVisible  = getWidgetVisible('unified-panel');
+
+    const t1Active = t1Visible && (t1.url || t1.keyword) && localStorage.getItem('cfg_topic1_active') !== 'false';
+    const t2Active = t2Visible && (t2.url || t2.keyword) && localStorage.getItem('cfg_topic2_active') !== 'false';
 
     if (t1Active && t2Active) {
-      p1.style.flex = '2'; p2.style.flex = '2'; u.style.flex = '1';
-    } else {
-      p1.style.flex = '3'; u.style.flex = '2';
+      p1.style.flex = '2'; p2.style.flex = '2'; if (u) u.style.flex = '1';
+    } else if (t1Visible) {
+      p1.style.flex = '3'; if (u) u.style.flex = '2';
+    } else if (u) {
+      u.style.flex = '1';
     }
   }
 
+  applyAllWidgetVisibility();
   layoutTopicPanels();
   fetchTopicFeed(1);
   fetchTopicFeed(2);
